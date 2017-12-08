@@ -14,5 +14,9 @@ RUN pip3 install -r /server/requirements.txt
 
 COPY *.py /server
 
-CMD /bin/sh /server/main.py
+# entrypoint sleep because docker-compose kills container after CMD is finished
+# this line should be deleted after server implementation
+ENTRYPOINT sleep 100000000
+
+CMD python /server/main.py
 
