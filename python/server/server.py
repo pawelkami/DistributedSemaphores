@@ -3,6 +3,7 @@ from socketserver import BaseRequestHandler, ThreadingMixIn, TCPServer
 from semaphores import Semaphores
 import traceback
 import json
+import socket
 
 # CREATE
 # LOCK
@@ -31,6 +32,7 @@ import json
 # “type”	:	“operation_name”,
 # “sem_name”   	: 	“semaphore_name”,
 # “result”	:	      “result”
+# "message" :         "message"
 # }
 # Klient - klient:
 # {
@@ -47,6 +49,7 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
     def handle(self):
         data = None
         response = None
+        client_id = str(self.client_address[0]) + ':' + str(self.client_address[1]) # socket.gethostbyaddr(self.client_address[0])[0]
         try:
             data = json.loads(str(self.request.recv(4096), 'ascii'))
         except json.JSONDecodeError:
@@ -57,7 +60,7 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
             # print("name: {}".format(data['sem_name']))
             try:
                 if data['type'] == "LOCK":
-                    response = self.server._semaphores.p(data['sem_name'])
+                    response = self.server._semaphores.p(data['sem_name'], client_id)
                 elif data['type'] == "PONG":
                     # self.server._semaphores.pong(data['sem_name'])
                     pass
@@ -66,7 +69,9 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
                 elif data['type'] == "DELETE":
                     response = self.server._semaphores.delete(data['sem_name'])
                 elif data['type'] == "UNLOCK":
-                    response = self.server._semaphores.v(data['sem_name'])
+                    response = self.server._semaphores.v(data['sem_name'], client_id)
+                elif data['type'] == "GET_AWAITING":
+                    response = self.server._semaphores.getAwaiting(data['sem_name'])
             except KeyError as e:
                 print(traceback.format_exc())
                 response = "{ \"type\" : \"ERROR\"," \
@@ -88,7 +93,7 @@ class ThreadedTCPServer(ThreadingMixIn, TCPServer):
 
 
 def run():
-    HOST, PORT = "localhost", 9999
+    HOST, PORT = "localhost", 10080
 
     server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
     with server:
