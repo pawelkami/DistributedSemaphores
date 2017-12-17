@@ -59,7 +59,7 @@ class Semaphores:
     def delete(self, name):
         result = None
         if name in self.semaphores.keys():
-            if self.semaphores[name].empty:
+            if self.semaphores[name].empty():
                 self.semaphores.pop(name, None)
                 result = "{\"type\":\"DELETED\",\"sem_name\":\"%s\"}" % (name,)
             else:
@@ -84,9 +84,15 @@ class Semaphores:
     def v(self, name, client):
         result = None
         if name in self.semaphores.keys():
-            if not self.semaphores[name].empty and client == list(self.semaphores[name].queue)[0]:
-                self.semaphores[name].get(block=False)
+            print(1)
+            print(list(self.semaphores[name].queue))
             if not self.semaphores[name].empty():
+                temp = self.semaphores[name].get_nowait()
+                print(2)
+                print(temp)
+            if not self.semaphores[name].empty():
+                print(3)
+                print(list(self.semaphores[name].queue))
                 message = "{\"type\":\"ENTER\",\"sem_name\":\"%s\"}" % (name,)
                 self.__sendMessage(message, list(self.semaphores[name].queue)[0]) # tell next client in queue that he is the new owner of this semaphore
             result = "{\"type\":\"UNLOCKED\",\"sem_name\":\"%s\"}" % (name,)

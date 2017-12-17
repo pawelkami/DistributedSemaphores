@@ -79,8 +79,8 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
             except:
                 print(traceback.format_exc())
         finally:
-            # print(data)
-            self.request.sendall(bytes(response, 'ascii'))
+            print(response)
+            self.request.send(bytes(response, 'ascii'))
 
 
 
