@@ -7,6 +7,6 @@ if __name__ == "__main__":
     client.create("DESKTOP-KD5T409", "B")
     client.getAwaiting("DESKTOP-KD5T409", "B")
     client.lock("DESKTOP-KD5T409", "B")
-    time.sleep(5)
+    time.sleep(10)
     client.unlock("DESKTOP-KD5T409", "B")
     client.delete("DESKTOP-KD5T409", "B")
