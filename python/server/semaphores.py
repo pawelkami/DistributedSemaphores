@@ -6,6 +6,7 @@ from threading import Lock
 from functools import partial
 import time
 import json
+from multiprocessing.pool import ThreadPool
 
 # CREATE
 # LOCK
@@ -47,19 +48,17 @@ import json
 
 class Semaphore:
 
-    def __init__(self, name, func):
+    def __init__(self, name, pingOwner, pingWait):
         self.queue = Queue(maxsize=0)
-        self.thread = threading.Thread(target=func, args=(name,), daemon=True)
+        self.pingOwnerThread = threading.Thread(target=pingOwner, args=(name,), daemon=True)
+        self.pingWaitThread = threading.Thread(target=pingWait, args=(name,), daemon=True)
         self.end = False
 
 class WaitClient:
 
-    def __init__(self, addr, th):
+    def __init__(self, addr):
         self.addr = addr
-        self.thread = th
-        if self.thread is not None:
-            self.thread.start()
-        self.end = th is None
+        self.alive = True
 
 class Semaphores:
 
@@ -72,8 +71,9 @@ class Semaphores:
         result = None
         if name not in self.semaphores.keys():
             result = "{\"type\":\"CREATED\",\"sem_name\":\"%s\"}" % (name,)
-            self.semaphores.update({ name : Semaphore(name, partial(Semaphores.__pinging, self)) })
-            self.semaphores[name].thread.start()
+            self.semaphores.update({ name : Semaphore(name, partial(Semaphores.__pinging, self), partial(Semaphores.__pingWaitingClients, self)) })
+            self.semaphores[name].pingOwnerThread.start()
+            self.semaphores[name].pingWaitThread.start()
         else:
             result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s already exists\"}" % (name,)
         return result
@@ -83,7 +83,8 @@ class Semaphores:
         if name in self.semaphores.keys():
             if self.semaphores[name].queue.empty():
                 self.semaphores[name].end = True
-                self.semaphores[name].thread.join()
+                self.semaphores[name].pingOwnerThread.join()
+                self.semaphores[name].pingWaitThread.join()
                 self.semaphores.pop(name, None)
                 result = "{\"type\":\"DELETED\",\"sem_name\":\"%s\"}" % (name,)
             else:
@@ -100,9 +101,8 @@ class Semaphores:
                 result = "{\"type\":\"ENTER\",\"sem_name\":\"%s\"}" % (name,)
             else:
                 result = "{\"type\":\"WAIT\",\"sem_name\":\"%s\"}" % (name,)
-                th = threading.Thread(target=partial(Semaphores.__pingClient, self), args=(name, client,), daemon=True)
             if client not in list(self.semaphores[name].queue.queue):
-                self.semaphores[name].queue.put(WaitClient(client, th))
+                self.semaphores[name].queue.put(WaitClient(client))
         else:
             result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"}" % (name,)
         return result
@@ -113,14 +113,7 @@ class Semaphores:
             self.semaphores[name].queue.get_nowait()
             if not self.semaphores[name].queue.empty():
                 message = "{\"type\":\"ENTER\",\"sem_name\":\"%s\"}" % (name,)
-                while not self.semaphores[name].queue.empty() and list(self.semaphores[name].queue.queue)[0].end:
-                    if list(self.semaphores[name].queue.queue)[0].thread is not None:
-                        list(self.semaphores[name].queue.queue)[0].thread.join()
-                    self.semaphores[name].queue.get_nowait()
-                if not self.semaphores[name].queue.empty():
-                    self.semaphores[name].queue.queue[0].end = True
-                    list(self.semaphores[name].queue.queue)[0].thread.join()
-                    self.__sendMessage(message, list(self.semaphores[name].queue.queue)[0].addr) # tell next client in queue that he is the new owner of this semaphore
+                self.__sendMessage(message, list(self.semaphores[name].queue.queue)[0].addr) # tell next client in queue that he is the new owner of this semaphore
             result = "{\"type\":\"UNLOCKED\",\"sem_name\":\"%s\"}" % (name,)
         else:
             result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"}" % (name,)
@@ -156,40 +149,48 @@ class Semaphores:
         except:
             print(traceback.format_exc())
 
+    def __pingWaitingClients(self, name):
+        while not self.semaphores[name].end:
+            addrs = []
+            for cl in list(self.semaphores[name].queue.queue)[1:]:
+                if cl.alive:
+                    addrs.append(cl.addr)
+
+            if len(addrs) > 0:
+                pool = ThreadPool()
+                results = pool.map(partial(Semaphores.__pingClient, self, name), addrs)
+
+                for i in range(0, len(addrs)):
+                    if not results[i]:
+                        for cl in self.semaphores[name].queue.queue:
+                            if cl.addr == addrs[i]:
+                                self.semaphores[name].queue.queue[i].alive = False
+
     def __pingClient(self, name, addr):
-        time.sleep(1)
         ping = "{\"type\":\"PING\",\"sem_name\":\"%s\"}" % (name,)
-
-        i = 0
-        while self.semaphores[name].queue.queue[i].addr != addr:
-            i += 1
-
-        # print(self.semaphores[name].queue.queue[i].end)
-        while not self.semaphores[name].queue.empty() and not self.semaphores[name].queue.queue[i].end:
-            it = addr.index(':')
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                    sock.settimeout(Semaphores.TIMEOUT)
+        result = True
+        it = addr.index(':')
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(Semaphores.TIMEOUT)
+                try:
+                    sock.connect((addr[:it], int(addr[it+1:])))
+                    sock.send(bytes(ping, 'ascii'))
+                except ConnectionRefusedError as e:
+                    result = False
+                else:
                     try:
-                        sock.connect((addr[:it], int(addr[it+1:])))
-                        sock.send(bytes(ping, 'ascii'))
-                    except ConnectionRefusedError:
-                        list(self.semaphores[name].queue.queue)[i].end = True
-                    else:
-                        try:
-                            data = json.loads(str(sock.recv(1024), 'ascii'))
-                            print(data)
-                            if data['type'] != "PONG":
-                                list(self.semaphores[name].queue.queue)[i].end = True
-                        except (json.JSONDecodeError, socket.timeout):
-                            list(self.semaphores[name].queue.queue)[i].end = True
-            except socket.timeout:
-                list(self.semaphores[name].queue.queue)[i].end = True
-            finally:
-                i = 0
-                while self.semaphores[name].queue.queue[i].addr != addr:
-                    i += 1
-                time.sleep(1)
+                        data = json.loads(str(sock.recv(1024), 'ascii'))
+                        print(data)
+                        if data['type'] != "PONG":
+                            result = False
+                    except (json.JSONDecodeError, socket.timeout):
+                        result = False
+        except socket.timeout:
+            result = False
+        finally:
+            time.sleep(1)
+            return result
 
     def __pinging(self, name):
         ping = "{\"type\":\"PING\",\"sem_name\":\"%s\"}" % (name,)
@@ -214,14 +215,17 @@ class Semaphores:
                         sock.connect((addr[:it], 8080))
                         sock.send(bytes(ping, 'ascii'))
                     except ConnectionRefusedError:
-                        self.semaphores[name].queue.get_nowait()
+                        if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0]:
+                            self.semaphores[name].queue.get_nowait()
                     else:
                         try:
                             data = json.loads(str(sock.recv(1024), 'ascii'))
                             print(data)
                             if data['type'] != "PONG":
-                                self.semaphores[name].queue.get_nowait()
+                                if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0]:
+                                    self.semaphores[name].queue.get_nowait()
                         except (json.JSONDecodeError, socket.timeout):
-                            self.semaphores[name].queue.get_nowait()
+                            if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0]:
+                                self.semaphores[name].queue.get_nowait()
             finally:
                 time.sleep(1)

@@ -10,3 +10,4 @@ if __name__ == "__main__":
     time.sleep(10)
     client.unlock("DESKTOP-KD5T409", "B")
     client.delete("DESKTOP-KD5T409", "B")
+    time.sleep(1)
