@@ -12,7 +12,8 @@ RUN pip3 install -r /client/requirements.txt
 
 # Copy python files
 
-COPY *.py /client
+COPY *.py /client/
 
 # entrypoint sleep because docker-compose kills container after CMD is finished
-ENTRYPOINT sleep 100000000
+#ENTRYPOINT sleep 100000000
+CMD sleep 15 & python3 /client/main.py & sleep 100000000

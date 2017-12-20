@@ -6,6 +6,12 @@ services:
       - NET_ADMIN
     depends_on:
       - "server1"
+  client2:
+    build: client
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - "server1"
   server1:
     build: server
   server2:

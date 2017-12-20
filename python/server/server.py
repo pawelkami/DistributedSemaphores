@@ -1,86 +1,48 @@
+from http import client
 from threading import Thread
 from socketserver import BaseRequestHandler, ThreadingMixIn, TCPServer
 from semaphores import Semaphores
 import traceback
 import json
 import socket
-
-# CREATE
-# LOCK
-# UNLOCK
-# DELETE
-# GET_AWAITING
-# PONG
-#
-# CREATED
-# WAIT
-# ENTER
-# ERROR
-# AWAITING
-# PING
-#
-# PROBE
-#
-# Klient - serwer:
-# {
-# “type”	:	“operation_name”,
-# “sem_name”   	: 	“semaphore_name”,
-#
-# }
-# Serwer - klient:
-# {
-# “type”	:	“operation_name”,
-# “sem_name”   	: 	“semaphore_name”,
-# “result”	:	      “result”
-# "message" :         "message"
-# }
-# Klient - klient:
-# {
-# “type”	:	“operation_name”,
-# “blocked_client_id”	:	“id”,
-# “src_client_id”		:	“id”,
-# “dst_client_id”		:	“id”
-# }
-#
+import logging
+import sys
 
 
 class ThreadedTCPRequestHandler(BaseRequestHandler):
 
     def handle(self):
+        logger = logging.getLogger('server')
         data = None
         response = None
         client_id = str(self.client_address[0]) + ':' + str(self.client_address[1]) # socket.gethostbyaddr(self.client_address[0])[0]
+        # client_id = socket.gethostbyaddr(self.client_address[0])[0]
+        # print(client_id)
         try:
             data = json.loads(str(self.request.recv(4096), 'ascii'))
         except json.JSONDecodeError:
             response = "{ \"type\" : \"ERROR\"," \
                        "\"value\": \"Json decode error\"}"
         else:
-            # print("type: {}".format(data['type']))
-            # print("name: {}".format(data['sem_name']))
             try:
                 if data['type'] == "LOCK":
-                    response = self.server._semaphores.p(data['sem_name'], client_id)
-                elif data['type'] == "PONG":
-                    # self.server._semaphores.pong(data['sem_name'])
-                    pass
+                    self.server._semaphores.p(self.request, data['sem_name'], client_id)
                 elif data['type'] == "CREATE":
-                    response = self.server._semaphores.create(data['sem_name'])
+                    self.server._semaphores.create(self.request, data['sem_name'])
                 elif data['type'] == "DELETE":
-                    response = self.server._semaphores.delete(data['sem_name'])
+                    self.server._semaphores.delete(self.request, data['sem_name'])
                 elif data['type'] == "UNLOCK":
-                    response = self.server._semaphores.v(data['sem_name'], client_id)
+                    self.server._semaphores.v(self.request, data['sem_name'], client_id)
                 elif data['type'] == "GET_AWAITING":
-                    response = self.server._semaphores.getAwaiting(data['sem_name'])
+                    self.server._semaphores.getAwaiting(self.request, data['sem_name'])
             except KeyError as e:
-                print(traceback.format_exc())
+                logger.info(traceback.format_exc())
                 response = "{ \"type\" : \"ERROR\"," \
                            "\"value\": \"Json decode error\"}"
-            except:
-                print(traceback.format_exc())
         finally:
-            print(response)
-            self.request.send(bytes(response, 'ascii'))
+            if response:
+                logger.info(response)
+                self.request.send(bytes(response, 'ascii'))
 
 
 
@@ -93,7 +55,19 @@ class ThreadedTCPServer(ThreadingMixIn, TCPServer):
 
 
 def run():
-    HOST, PORT = "localhost", 10080
+    logger = logging.getLogger('server')
+    logger.setLevel(logging.DEBUG)
+
+    # fh = logging.FileHandler('/home/server.log')
+    fh = logging.StreamHandler(sys.stdout)
+
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    print(socket.gethostbyname(socket.gethostname()))
+    HOST, PORT = socket.gethostbyname(socket.gethostname()), 10080
 
     server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
     with server:
