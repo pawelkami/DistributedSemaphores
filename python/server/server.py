@@ -26,15 +26,15 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
         else:
             try:
                 if data['type'] == "LOCK":
-                    self.server._semaphores.p(self.request, data['sem_name'], client_id)
+                    response = self.server._semaphores.p(self.request, data['sem_name'], client_id)
                 elif data['type'] == "CREATE":
-                    self.server._semaphores.create(self.request, data['sem_name'])
+                    response = self.server._semaphores.create(self.request, data['sem_name'])
                 elif data['type'] == "DELETE":
-                    self.server._semaphores.delete(self.request, data['sem_name'])
+                    response = self.server._semaphores.delete(self.request, data['sem_name'])
                 elif data['type'] == "UNLOCK":
-                    self.server._semaphores.v(self.request, data['sem_name'], client_id)
+                    response = self.server._semaphores.v(self.request, data['sem_name'], client_id)
                 elif data['type'] == "GET_AWAITING":
-                    self.server._semaphores.getAwaiting(self.request, data['sem_name'])
+                    response = self.server._semaphores.getAwaiting(self.request, data['sem_name'])
             except KeyError as e:
                 logger.info(traceback.format_exc())
                 response = "{ \"type\" : \"ERROR\"," \

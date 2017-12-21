@@ -32,21 +32,27 @@ class Client:
     def __del__(self):
         self.__listener.join()
 
-    def create(self, serverName, semName):
+    def create(self, semaphoreName):
+        it = semaphoreName.find('.')
+        serverName = semaphoreName[:it]
+        semName = semaphoreName[it+1:]
         ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"CREATE\",\"sem_name\":\"%s\"}" % (semName,)
 
         self.__send(ip, message)
 
     # "{\"type\":\"LOCK\",\"sem_name\":\"A\"}"
-    def lock(self, serverName, semName):
+    def lock(self, semaphoreName):
+        it = semaphoreName.find('.')
+        serverName = semaphoreName[:it]
+        semName = semaphoreName[it + 1:]
         ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"LOCK\",\"sem_name\":\"%s\"}" % (semName,)
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(Client.TIMEOUT)
             sock.connect((ip, Client.port))
             sock.send(bytes(message, 'ascii'))
-            sock.settimeout(Client.TIMEOUT)
 
             try:
                 data = json.loads(str(sock.recv(1024), 'ascii'))
@@ -85,22 +91,39 @@ class Client:
                 except Exception as e:
                     self.logger.info(traceback.format_exc())
 
+    # "{\"type\":\"LOCK\",\"sem_name\":\"A\"}"
+    def multiLock(self, semaphoresName):
+        for semaphoreName in semaphoresName:
+            it = semaphoreName.find('.')
+            serverName = semaphoreName[:it]
+            semName = semaphoreName[it + 1:]
+
     # "{\"type\":\"UNLOCK\",\"sem_name\":\"A\"}"
-    def unlock(self, serverName, semName):
+    def unlock(self, semaphoreName):
+        it = semaphoreName.find('.')
+        serverName = semaphoreName[:it]
+        semName = semaphoreName[it + 1:]
+        ip = socket.gethostbyname(serverName)
         ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"UNLOCK\",\"sem_name\":\"%s\"}" % (semName,)
 
         self.__send(ip, message)
 
     # "{\"type\":\"DELETE\",\"sem_name\":\"A\"}"
-    def delete(self, serverName, semName):
+    def delete(self, semaphoreName):
+        it = semaphoreName.find('.')
+        serverName = semaphoreName[:it]
+        semName = semaphoreName[it + 1:]
         ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"DELETE\",\"sem_name\":\"%s\"}" % (semName,)
 
         self.__send(ip, message)
 
     # "{\"type\":\"GET_AWAITING\",\"sem_name\":\"A\"}"
-    def getAwaiting(self, serverName, semName):
+    def getAwaiting(self, semaphoreName):
+        it = semaphoreName.find('.')
+        serverName = semaphoreName[:it]
+        semName = semaphoreName[it + 1:]
         ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"GET_AWAITING\",\"sem_name\":\"%s\"}" % (semName,)
 
@@ -116,12 +139,15 @@ class Client:
 
     def __send(self, ip, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(Client.TIMEOUT)
             sock.connect((ip, Client.port))
             sock.send(bytes(message, 'ascii'))
             response = str(sock.recv(1024), 'ascii')
 
             try:
                 self.logger.info(json.loads(response)['type'])
+            except socket.timeout:
+                pass
             except:
                 self.logger.info(traceback.format_exc())
             else:
