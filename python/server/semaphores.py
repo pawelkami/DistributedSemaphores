@@ -25,44 +25,45 @@ class WaitClient:
 
 class Semaphores:
 
-    TIMEOUT = 10
+    TIMEOUT = 5
 
     def __init__(self):
         self.semaphores = dict()
 
     def create(self, sock, name):
-        result = None
+        result = "{\"type\":\"CREATE\""
         if name not in self.semaphores.keys():
-            result = "{\"type\":\"CREATED\",\"sem_name\":\"%s\"}" % (name,)
+            result += ",\"result\":\"CREATED\",\"sem_name\":\"%s\"" % (name,)
             self.semaphores.update({ name : Semaphore(name, partial(Semaphores.__pinging, self)) })
             self.semaphores[name].pingOwnerThread.start()
         else:
-            result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s already exists\"}" % (name,)
-        return result
+            result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s already exists\"" % (name,)
+        return result + '}'
 
     def delete(self, sock, name):
-        result = None
+        result = "{\"type\":\"DELETE\""
         if name in self.semaphores.keys():
             if self.semaphores[name].queue.empty():
                 if not self.semaphores[name].pingOwnerThread.isAlive():
                     self.semaphores[name].end = True
                     self.semaphores[name].pingOwnerThread.join()
                 self.semaphores.pop(name, None)
-                result = "{\"type\":\"DELETED\",\"sem_name\":\"%s\"}" % (name,)
+                result += ",\"result\":\"DELETED\",\"sem_name\":\"%s\"" % (name,)
             else:
-                result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s is abandoned\"}" % (name,)
+                result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s is abandoned\"" % (name,)
         else:
-            result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"}" % (name,)
-        return result
+            result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"" % (name,)
+        return result + '}'
 
-    def p(self, sock, name, client):
+    def p(self, sock, name, clientAddr):
         logger = logging.getLogger('server')
-        result = None
+        result = "{\"type\":\"LOCK\""
+        client = clientAddr[:clientAddr.find(':')]
         if name in self.semaphores.keys():
-            if client not in list(self.semaphores[name].queue.queue):
+            if client not in list(self.semaphores[name].queue.queue) or client != self.semaphores[name].queue.queue[0].addr:
                 if not self.semaphores[name].queue.empty():
                     self.semaphores[name].queue.put(WaitClient(client))
-                    wait = "{\"type\":\"WAIT\",\"sem_name\":\"%s\"}" % (name,)
+                    wait = "{\"type\":\"LOCK\",\"result\":\"WAIT\",\"sem_name\":\"%s\"}" % (name,)
                     try:
                         sock.settimeout(Semaphores.TIMEOUT)
                         sock.send(bytes(wait, 'ascii'))
@@ -83,30 +84,29 @@ class Semaphores:
                         return None
                 else:
                     self.semaphores[name].queue.put(WaitClient(client))
-            result = "{\"type\":\"ENTER\",\"sem_name\":\"%s\"}" % (name,)
+            result += ",\"result\":\"ENTER\",\"sem_name\":\"%s\"" % (name,)
         else:
-            result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"}" % (name,)
-        return result
+            result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"" % (name,)
+        return result + '}'
 
     def v(self, sock, name, client):
         logger = logging.getLogger('server')
-        result = None
+        result = "{\"type\":\"UNLOCK\""
         if name in self.semaphores.keys():
-            it = client.index(':')
-            if not self.semaphores[name].queue.empty() and client[:it] == self.semaphores[name].queue.queue[0].addr[:it]:
+            if not self.semaphores[name].queue.empty() and client == self.semaphores[name].queue.queue[0].addr:
                 self.semaphores[name].queue.get_nowait()
             while not self.semaphores[name].queue.empty() and not self.semaphores[name].queue.queue[0].alive:
                 self.semaphores[name].queue.get_nowait()
-            result = "{\"type\":\"UNLOCKED\",\"sem_name\":\"%s\"}" % (name,)
+            result += ",\"result\":\"UNLOCKED\",\"sem_name\":\"%s\"" % (name,)
         else:
-            result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"}" % (name,)
-        return result
+            result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"" % (name,)
+        return result + '}'
 
     def getAwaiting(self, sock, name):
-        result = None
+        result = "{\"type\":\"GET_AWAITING\""
         empty = True
         if name in self.semaphores.keys():
-            result = "{\"type\":\"AWAITING\",\"sem_name\":\"%s\",\"result\":[" % (name,)
+            result += ",\"result\":\"AWAITING\",\"sem_name\":\"%s\",\"message\":[" % (name,)
             waiting = list(self.semaphores[name].queue.queue)
             if len(waiting) > 0:
                 empty = False
@@ -114,18 +114,25 @@ class Semaphores:
                 result += "\"{}\",".format(cl.addr)
 
             if empty:
-                result += "]}"
+                result += "]"
             else:
-                result = result[:-1] + "]}"
+                result = result[:-1] + "]"
         else:
-            result = "{\"type\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"}" % (name,)
+            result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"" % (name,)
 
-        return result
+        return result + '}'
 
     def __pinging(self, name):
         logger = logging.getLogger('server')
         ping = "{\"type\":\"PING\",\"sem_name\":\"%s\"}" % (name,)
-        while not self.semaphores[name].end:
+
+        while True:
+            try:
+                if self.semaphores[name].end:
+                   break
+            except KeyError:
+                return
+
             addr = None
             try:
                 while addr is None:
@@ -134,30 +141,29 @@ class Semaphores:
                         addr = clientQueue[0].addr
                     # print("First client address {}".format(addr))
             except KeyError:
-                raise Exception('Lack of semaphore {}'.format(name))
+                return
             else:
                 try:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                         sock.settimeout(Semaphores.TIMEOUT)
-                        it = addr.index(':')
                         try:
-                            sock.connect((addr[:it], 8080))
+                            sock.connect((addr, 8080))
                             sock.send(bytes(ping, 'ascii'))
                         except ConnectionRefusedError:
-                            if not self.semaphores[name].queue.empty() and addr[:it] == self.semaphores[name].queue.queue[0].addr[:it]:
+                            if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                                 self.semaphores[name].queue.get_nowait()
                         else:
                             try:
                                 data = json.loads(str(sock.recv(1024), 'ascii'))
                                 logger.info("Inside {}".format(data))
                                 if data['type'] != "PONG":
-                                    if not self.semaphores[name].queue.empty() and addr[:it] == self.semaphores[name].queue.queue[0].addr[:it]:
+                                    if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                                         self.semaphores[name].queue.get_nowait()
                             except json.JSONDecodeError:
-                                if not self.semaphores[name].queue.empty() and addr[:it] == self.semaphores[name].queue.queue[0].addr[:it]:
+                                if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                                     self.semaphores[name].queue.get_nowait()
                 except socket.timeout:
-                    if not self.semaphores[name].queue.empty() and addr[:it] == self.semaphores[name].queue.queue[0].addr[:it]:
+                    if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                         self.semaphores[name].queue.get_nowait()
             finally:
                 time.sleep(1)

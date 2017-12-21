@@ -7,10 +7,12 @@ from functools import partial
 import logging
 import sys
 import time
+from ClientExceptions import ClientExceptions, AlreadyExistsException, DoesNotExistException, AbandonedException
+
 
 class Client:
 
-    TIMEOUT = 10
+    TIMEOUT = 5
 
     port = 10080
 
@@ -19,8 +21,8 @@ class Client:
     def __init__(self):
         self.logger = logging.getLogger('server')
         self.logger.setLevel(logging.DEBUG)
-        # fh = logging.FileHandler('/home/client.log')
-        fh = logging.StreamHandler(sys.stdout)
+        fh = logging.FileHandler('/home/client.log')
+        # fh = logging.StreamHandler(sys.stdout)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
@@ -53,32 +55,36 @@ class Client:
             sock.settimeout(Client.TIMEOUT)
             sock.connect((ip, Client.port))
             sock.send(bytes(message, 'ascii'))
-
+            data = None
             try:
-                data = json.loads(str(sock.recv(1024), 'ascii'))
+                data = str(sock.recv(1024), 'ascii')
+                data = json.loads(data)
             except json.JSONDecodeError:
+                print(data)
                 raise Exception("Internal server error")
             else:
                 try:
                     self.logger.info("Received: {}".format(data))
-                    if data['type'] == 'ENTER':
+                    if data['result'] == 'ENTER':
                         return
-                    elif data['type'] == 'WAIT':
+                    elif data['result'] == 'WAIT':
                         try:
                             while True:
                                 response = None
                                 try:
                                     data = json.loads(str(sock.recv(1024), 'ascii'))
                                 except json.JSONDecodeError:
-                                    response = "{ \"type\" : \"ERROR\"," \
+                                    response = "{ \"result\" : \"ERROR\"," \
                                                "\"value\": \"Json decode error\"}"
                                 else:
                                     try:
                                         self.logger.info("Received: {}".format(data))
                                         if data['type'] == "PING":
                                             response = "{\"type\":\"PONG\",\"sem_name\":\"%s\"}" % (data['sem_name'],)
-                                        elif data['type'] == 'ENTER':
+                                        elif data['result'] == 'ENTER':
                                             break
+                                        elif data['result'] == 'ERROR':
+                                            ClientExceptions.castException(data['message'])
                                     except:
                                         self.logger.info(traceback.format_exc())
                                 finally:
@@ -86,17 +92,15 @@ class Client:
                                         sock.send(bytes(response, 'ascii'))
                         except socket.timeout as e:
                             raise e
+                    elif data['result'] == 'ERROR':
+                        ClientExceptions.castException(data['message'])
                 except socket.timeout as e:
                     raise e
-                except Exception as e:
-                    self.logger.info(traceback.format_exc())
 
     # "{\"type\":\"LOCK\",\"sem_name\":\"A\"}"
     def multiLock(self, semaphoresName):
         for semaphoreName in semaphoresName:
-            it = semaphoreName.find('.')
-            serverName = semaphoreName[:it]
-            semName = semaphoreName[it + 1:]
+            self.lock(semaphoreName)
 
     # "{\"type\":\"UNLOCK\",\"sem_name\":\"A\"}"
     def unlock(self, semaphoreName):
@@ -145,11 +149,12 @@ class Client:
             response = str(sock.recv(1024), 'ascii')
 
             try:
-                self.logger.info(json.loads(response)['type'])
+                response = json.loads(response)
+                self.logger.info(response['type'])
+                if response['result'] == 'ERROR':
+                    ClientExceptions.castException(response['message'])
             except socket.timeout:
                 pass
-            except:
-                self.logger.info(traceback.format_exc())
             else:
                 self.logger.info("Received: {}".format(response))
                 return response
@@ -167,8 +172,7 @@ class Client:
                 try:
                     data = json.loads(str(conn.recv(1024), 'ascii'))
                 except json.JSONDecodeError:
-                    response = "{ \"type\" : \"ERROR\"," \
-                               "\"value\": \"Json decode error\"}"
+                    self.logger.info(traceback.format_exc())
                 else:
                     self.logger.info("Received: {}".format(data))
                     try:
@@ -176,10 +180,6 @@ class Client:
                             response = "{\"type\":\"PONG\",\"sem_name\":\"%s\"}" % (data['sem_name'],)
 
                     except KeyError as e:
-                        self.logger.info(traceback.format_exc())
-                        response = "{ \"type\" : \"ERROR\"," \
-                                   "\"value\": \"Json decode error\"}"
-                    except:
                         self.logger.info(traceback.format_exc())
                 finally:
                     # print(data)
