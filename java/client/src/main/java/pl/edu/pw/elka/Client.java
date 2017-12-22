@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 public class Client {
     private static final int SERVER_PORT = 8080;
-    private static final int TIMEOUT = 500000;
+    private static final int TIMEOUT = 5000;
     private static final int BUF_SIZE = 1024;
     private Logger log = Logger.getLogger(Client.class.getName());
 

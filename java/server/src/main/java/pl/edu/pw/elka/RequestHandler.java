@@ -20,7 +20,7 @@ public class RequestHandler implements Runnable {
     private Socket socket;
     private final int BUF_SIZE = 4 * 1024; // 4 kB
     Logger log = Logger.getLogger(RequestHandler.class.getName());
-    private static int TIMEOUT = 5000000;
+    private static int TIMEOUT = 5000;
 
     public RequestHandler(Socket connection) throws SocketException {
         this.socket = connection;
@@ -160,6 +160,13 @@ public class RequestHandler implements Runnable {
             while(true)
             {
                 Thread.sleep(1000);
+                q = ServerContext.getInstance().getClientQueue(semaphoreName);  // check if semaphore is free
+                if(q.peek().equals(clientName))
+                {
+                    sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_ENTER);
+                    return;
+                }
+
                 sendResponse(Defines.OPERATION_PING, semaphoreName, "");
 
                 String clientResponse = recv();
