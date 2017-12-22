@@ -44,12 +44,15 @@ public class ConsoleUI
                         break;
 
                     case "delete":
+                        client.deleteSemaphore(sem_name);
                         break;
 
                     case "lock":
+                        client.lock(sem_name);
                         break;
 
                     case "unlock":
+                        client.unlock(sem_name);
                         break;
 
                     case "deadlock":

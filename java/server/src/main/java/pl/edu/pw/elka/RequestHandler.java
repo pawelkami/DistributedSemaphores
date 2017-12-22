@@ -3,6 +3,7 @@ package pl.edu.pw.elka;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -19,9 +20,11 @@ public class RequestHandler implements Runnable {
     private Socket socket;
     private final int BUF_SIZE = 4 * 1024; // 4 kB
     Logger log = Logger.getLogger(RequestHandler.class.getName());
+    private static int TIMEOUT = 5000000;
 
-    public RequestHandler(Socket connection) {
+    public RequestHandler(Socket connection) throws SocketException {
         this.socket = connection;
+        this.socket.setSoTimeout(TIMEOUT);
     }
 
     @Override
@@ -29,28 +32,10 @@ public class RequestHandler implements Runnable {
 
         try
         {
-            byte[] byteArr = new byte[BUF_SIZE];
-            StringBuilder clientData = new StringBuilder();
-            String redDataText;
-            byte[] redData;
-            int red = -1;
+            String clientData = recv();
 
-            if ((red = socket.getInputStream().read(byteArr)) > -1) {
-                redData = new byte[red];
-                System.arraycopy(byteArr, 0, redData, 0, red);
-                redDataText = new String(redData,"UTF-8"); // assumption that client sends data UTF-8 encoded
-                log.info("message part received:" + redDataText + " from: " + getClientNameFromSocket());
-                clientData.append(redDataText);
-            }
-            else
-            {
-                // todo odpowiedz do klienta
-                log.warning("Problem reading socket stream");
-                return;
-            }
-
-            log.info("Data From Client :" + clientData.toString());
-            JsonObject jobj = new Gson().fromJson(clientData.toString(), JsonObject.class);
+            log.info("Data From Client :" + clientData);
+            JsonObject jobj = new Gson().fromJson(clientData, JsonObject.class);
             handleJsonRequest(jobj);
 
 
@@ -115,6 +100,8 @@ public class RequestHandler implements Runnable {
         {
             log.warning("There is no 'type' in received JSON");
             sendErrorResponse("", "", Defines.RESPONSE_ERROR, "Wrong JSON");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 
     }
@@ -134,7 +121,7 @@ public class RequestHandler implements Runnable {
         {
             try
             {
-                ServerContext.getInstance().deleteSemaphore(semaphoreName);
+                ServerContext.getInstance().removeFromQueue(semaphoreName, getClientNameFromSocket());
                 sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(),  semaphoreName, Defines.RESPONSE_OK);
             }
             catch (DistributedSemaphoreException e)
@@ -148,8 +135,7 @@ public class RequestHandler implements Runnable {
 
     }
 
-    private synchronized void handleLockSem(JsonObject json)
-    {
+    private synchronized void handleLockSem(JsonObject json) throws InterruptedException {
         String clientName = getClientNameFromSocket();
         String semaphoreName = json.get(Defines.JSON_SEMAPHORE_NAME).getAsString();
         ServerContext.getInstance().createSemaphore(semaphoreName);
@@ -157,9 +143,47 @@ public class RequestHandler implements Runnable {
         ServerContext.getInstance().addToQueue(semaphoreName, clientName);
         Queue<String> q = ServerContext.getInstance().getClientQueue(semaphoreName);
 
-        sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, q.size() == 1 ? Defines.RESPONSE_ENTER : Defines.RESPONSE_WAIT);
+        if(q.size() == 1)
+        {
+            sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_ENTER);
+            // todo sprawdzanie czy jeszcze siedzi w sekcji krytycznej
+            return;
+        }
+        else
+        {
+            sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_WAIT);
+        }
 
-        // TODO zrobić odpytywanie czy nadal żyje GET_AWAITING
+        try
+        {
+
+            while(true)
+            {
+                Thread.sleep(1000);
+                sendResponse(Defines.OPERATION_PING, semaphoreName, "");
+
+                String clientResponse = recv();
+
+                JsonParser parser = new JsonParser();
+                JsonObject clientJsonResponse = parser.parse(clientResponse).getAsJsonObject();
+
+                if(!(clientJsonResponse.has(Defines.JSON_OPERATION_TYPE) && clientJsonResponse.get(Defines.JSON_OPERATION_TYPE).getAsString().equals(Defines.RESPONSE_PONG)))
+                {
+                    removeClientFromSemQueue(semaphoreName, clientName);
+
+                    return;
+                }
+
+            }
+        }
+        catch (IOException e)
+        {
+            log.warning("Client disconnected. Removing him from queue.");
+            removeClientFromSemQueue(semaphoreName, clientName);
+            e.printStackTrace();
+        }
+
+
 
     }
 
@@ -225,6 +249,8 @@ public class RequestHandler implements Runnable {
             OutputStream os = socket.getOutputStream();
             DataOutputStream dos = new DataOutputStream(os);
             dos.writeBytes(json.toString());
+
+            log.info("Sending: " + json.toString());
             dos.flush();
         }
         catch (IOException e)
@@ -232,4 +258,38 @@ public class RequestHandler implements Runnable {
             e.printStackTrace();
         }
     }
+
+    // remove client from queue if it crashes
+    private synchronized void removeClientFromSemQueue(String semName, String clientName)
+    {
+        Queue<String> q = ServerContext.getInstance().getClientQueue(semName);
+        q.remove(clientName);
+    }
+
+    private String recv() throws IOException {
+        byte[] byteArr = new byte[BUF_SIZE];
+        StringBuilder clientData = new StringBuilder();
+        String redDataText;
+        byte[] redData;
+        int red = -1;
+
+        do
+        {
+            if((red = socket.getInputStream().read(byteArr)) == -1)
+            {
+                log.warning("Problem reading socket stream");
+                throw new IOException("Problem reading socket stream");
+            }
+
+            redData = new byte[red];
+            System.arraycopy(byteArr, 0, redData, 0, red);
+            redDataText = new String(redData,"UTF-8"); // assumption that client sends data UTF-8 encoded
+            log.info("message part received:" + redDataText + "len: " + red);
+            clientData.append(redDataText);
+        } while(clientData.lastIndexOf("}") == -1);
+        log.info("Received: " + clientData.toString());
+
+        return clientData.toString();
+    }
+
 }
