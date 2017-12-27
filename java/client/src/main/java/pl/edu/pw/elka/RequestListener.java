@@ -8,20 +8,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
-class Server {
+class RequestListener implements Runnable {
 
     private ExecutorService executorService = Executors.newFixedThreadPool(10); // number of server threads
     private final int PORT = 8080;
 
-    Logger log = Logger.getLogger(Server.class.getName());
+    Logger log = Logger.getLogger(RequestListener.class.getName());
 
 
-    Server()
+    RequestListener()
     {
 
     }
 
-    void runServer()
+    @Override
+    public void run()
     {
         log.info("Creating socket...");
         try(ServerSocket serverSocket = new ServerSocket(PORT))
@@ -31,7 +32,7 @@ class Server {
                 try {
                     Socket s = serverSocket.accept();
                     log.info("Processing request");
-                    executorService.submit(new RequestHandler(s));
+                    executorService.submit(new ClientRequestHandler(s));
                 } catch(IOException ioe) {
                     log.warning("Error accepting connection");
                     ioe.printStackTrace();
