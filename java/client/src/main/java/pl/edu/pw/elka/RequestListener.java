@@ -24,14 +24,14 @@ class RequestListener implements Runnable {
     @Override
     public void run()
     {
-        log.info("Creating socket...");
+        //log.info("Creating socket...");
         try(ServerSocket serverSocket = new ServerSocket(PORT))
         {
             while(true) {
-                log.info("Waiting for request...");
+//                log.info("Waiting for request...");
                 try {
                     Socket s = serverSocket.accept();
-                    log.info("Processing request");
+//                    log.info("Processing request");
                     executorService.submit(new ClientRequestHandler(s));
                 } catch(IOException ioe) {
                     log.warning("Error accepting connection");

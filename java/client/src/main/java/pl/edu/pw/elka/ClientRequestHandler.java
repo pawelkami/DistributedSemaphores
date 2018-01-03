@@ -32,7 +32,7 @@ public class ClientRequestHandler implements Runnable {
         {
             String clientData = recv();
 
-            log.info("Data From Client :" + clientData);
+            //log.info("Data From Client :" + clientData);
             JsonObject jobj = new Gson().fromJson(clientData, JsonObject.class);
             handleJsonRequest(jobj);
 
@@ -53,7 +53,7 @@ public class ClientRequestHandler implements Runnable {
     }
 
     private void handleJsonRequest(JsonObject json) {
-        log.info("Handling JSON request");
+        //log.info("Handling JSON request");
         JsonElement opJson = json.get("type");
 
         if(!json.has(Defines.JSON_SEMAPHORE_NAME))
@@ -105,7 +105,7 @@ public class ClientRequestHandler implements Runnable {
             DataOutputStream dos = new DataOutputStream(os);
             dos.writeBytes(json.toString());
 
-            log.info("Sending: " + json.toString());
+            //log.info("Sending: " + json.toString());
             dos.flush();
         }
         catch (IOException e)
@@ -133,10 +133,9 @@ public class ClientRequestHandler implements Runnable {
             redData = new byte[red];
             System.arraycopy(byteArr, 0, redData, 0, red);
             redDataText = new String(redData,"UTF-8"); // assumption that client sends data UTF-8 encoded
-            log.info("message part received:" + redDataText + "len: " + red);
             clientData.append(redDataText);
         } while(clientData.lastIndexOf("}") == -1);
-        log.info("Received: " + clientData.toString());
+        //log.info("Received: " + clientData.toString());
 
         return clientData.toString();
     }

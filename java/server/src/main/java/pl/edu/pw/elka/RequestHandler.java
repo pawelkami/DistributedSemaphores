@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
@@ -21,6 +22,8 @@ public class RequestHandler implements Runnable {
     private final int BUF_SIZE = 4 * 1024; // 4 kB
     Logger log = Logger.getLogger(RequestHandler.class.getName());
     private static int TIMEOUT = 5000;
+
+    private static int CLIENT_PORT = 8080;
 
     public RequestHandler(Socket connection) throws SocketException {
         this.socket = connection;
@@ -143,55 +146,88 @@ public class RequestHandler implements Runnable {
         ServerContext.getInstance().addToQueue(semaphoreName, clientName);
         Queue<String> q = ServerContext.getInstance().getClientQueue(semaphoreName);
 
-        if(q.size() == 1)
-        {
-            sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_ENTER);
-            // todo sprawdzanie czy jeszcze siedzi w sekcji krytycznej
-            return;
-        }
-        else
-        {
-            sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_WAIT);
-        }
-
         try
         {
-
-            while(true)
+            if(q.size() != 1)
             {
-                Thread.sleep(1000);
-                q = ServerContext.getInstance().getClientQueue(semaphoreName);  // check if semaphore is free
-                if(q.peek().equals(clientName))
-                {
-                    sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_ENTER);
-                    return;
-                }
-
-                sendResponse(Defines.OPERATION_PING, semaphoreName, "");
-
-                String clientResponse = recv();
-
-                JsonParser parser = new JsonParser();
-                JsonObject clientJsonResponse = parser.parse(clientResponse).getAsJsonObject();
-
-                if(!(clientJsonResponse.has(Defines.JSON_OPERATION_TYPE) && clientJsonResponse.get(Defines.JSON_OPERATION_TYPE).getAsString().equals(Defines.RESPONSE_PONG)))
-                {
-                    removeClientFromSemQueue(semaphoreName, clientName);
-
-                    return;
-                }
-
+                sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_WAIT);
+                pingingWait(semaphoreName);
             }
+
+            enterCriticalSection(semaphoreName);
         }
-        catch (IOException e)
-        {
+        catch (IOException | DistributedSemaphoreException  e) {
             log.warning("Client disconnected. Removing him from queue.");
             removeClientFromSemQueue(semaphoreName, clientName);
             e.printStackTrace();
         }
 
+    }
+
+    private void enterCriticalSection(String semaphoreName) throws IOException, InterruptedException, DistributedSemaphoreException {
+        sendResponse(Defines.OPERATION_LOCK, semaphoreName, Defines.RESPONSE_ENTER);
+
+        while(true)
+        {
+            pingCriticalSection(semaphoreName);
+        }
+
+    }
+
+    private void pingCriticalSection(String semaphoreName) throws IOException, InterruptedException, DistributedSemaphoreException {
+        InetAddress inetAddress = socket.getInetAddress();
+        String clientName = getClientNameFromSocket();
+        socket.close();
 
 
+        while(true)
+        {
+            Thread.sleep(1000);
+
+            Queue<String> q = ServerContext.getInstance().getClientQueue(semaphoreName);  // check if semaphore is free
+            if(q.isEmpty() || !q.peek().equals(clientName))
+            {
+                return;
+            }
+
+            socket = new Socket(inetAddress, CLIENT_PORT);
+            ping(semaphoreName);
+
+            socket.close();
+        }
+    }
+
+    private void pingingWait(String semaphoreName) throws InterruptedException, IOException, DistributedSemaphoreException {
+        String clientName = getClientNameFromSocket();
+        while(true)
+        {
+            Thread.sleep(1000);
+
+            Queue<String> q = ServerContext.getInstance().getClientQueue(semaphoreName);  // check if semaphore is free
+            if(q.peek().equals(clientName))
+            {
+                enterCriticalSection(semaphoreName);
+                return;
+            }
+
+            ping(semaphoreName);
+        }
+    }
+
+    private void ping(String semaphoreName) throws IOException, DistributedSemaphoreException {
+        String clientName = getClientNameFromSocket();
+        sendResponse(Defines.OPERATION_PING, semaphoreName, "");
+
+        String clientResponse = recv();
+
+        JsonParser parser = new JsonParser();
+        JsonObject clientJsonResponse = parser.parse(clientResponse).getAsJsonObject();
+
+        if(!(clientJsonResponse.has(Defines.JSON_OPERATION_TYPE) && clientJsonResponse.get(Defines.JSON_OPERATION_TYPE).getAsString().equals(Defines.RESPONSE_PONG)))
+        {
+            removeClientFromSemQueue(semaphoreName, clientName);
+            throw new DistributedSemaphoreException("Did not get PONG response. Deleting client from queue");
+        }
     }
 
     private synchronized void handleDeleteSem(JsonObject json)
