@@ -63,6 +63,10 @@ public class ConsoleUI
                     case "deadlock":
                         break;
 
+                    case "exit":
+                        System.exit(0);
+                        break;
+                        
                     default:
                         break;
                 }
