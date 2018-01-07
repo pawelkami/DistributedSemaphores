@@ -20,6 +20,7 @@ public class ConsoleUI
         System.out.println("lock - lock semaphore");
         System.out.println("unlock - unlock semaphore");
         System.out.println("deadlock - test for deadlock");
+        System.out.println("awaiting - get list of awaiting clients");
 
     }
 
@@ -53,6 +54,10 @@ public class ConsoleUI
 
                     case "unlock":
                         client.unlock(sem_name);
+                        break;
+
+                    case "awaiting":
+                        client.getAwaiting(sem_name);
                         break;
 
                     case "deadlock":

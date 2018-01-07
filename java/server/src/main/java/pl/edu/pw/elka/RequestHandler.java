@@ -1,9 +1,6 @@
 package pl.edu.pw.elka;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -11,6 +8,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.logging.Logger;
 
@@ -88,6 +86,7 @@ public class RequestHandler implements Runnable {
                     break;
 
                 case Defines.OPERATION_GET_AWAITING:
+                    handleGetAwaiting(json);
                     break;
 
                 case Defines.OPERATION_PING:
@@ -106,6 +105,32 @@ public class RequestHandler implements Runnable {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+    }
+
+    private void handleGetAwaiting(JsonObject json) {
+        String semaphoreName = json.get(Defines.JSON_SEMAPHORE_NAME).getAsString();
+
+        JsonObject response = new JsonObject();
+        response.addProperty("type", json.get(Defines.JSON_OPERATION_TYPE).getAsString());
+        response.addProperty("sem_name", semaphoreName);
+
+        Queue<String> q = ServerContext.getInstance().getClientQueue(semaphoreName);
+        //List<String> l = (List)q;
+
+        JsonArray jsonArray = new JsonArray();
+        if(q != null)
+        {
+            for(String s : q)
+            {
+                jsonArray.add(s);
+            }
+        }
+
+        response.add("result", jsonArray);
+
+        send(response);
+
 
     }
 

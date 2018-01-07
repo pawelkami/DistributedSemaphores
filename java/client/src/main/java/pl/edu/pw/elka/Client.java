@@ -220,4 +220,15 @@ public class Client {
             log.info("Error: " + response.get(Defines.RESPONSE_ERROR));
         }
     }
+
+    public void getAwaiting(String name) throws ClientException {
+        String[] arr = splitSemaphoreName(name);
+
+        JsonObject json = new JsonObject();
+        json.addProperty(Defines.JSON_OPERATION_TYPE, Defines.OPERATION_GET_AWAITING);
+        json.addProperty(Defines.JSON_SEMAPHORE_NAME, arr[1]);
+
+        JsonObject response = sendToServer(json, arr[0]);
+        // todo
+    }
 }
