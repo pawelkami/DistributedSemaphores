@@ -21,6 +21,7 @@ public class ConsoleUI
         System.out.println("unlock - unlock semaphore");
         System.out.println("deadlock - test for deadlock");
         System.out.println("awaiting - get list of awaiting clients");
+        System.out.println("exit - exit client");
 
     }
 
@@ -66,7 +67,7 @@ public class ConsoleUI
                     case "exit":
                         System.exit(0);
                         break;
-                        
+
                     default:
                         break;
                 }

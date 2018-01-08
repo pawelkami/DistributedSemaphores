@@ -13,8 +13,8 @@ from ClientExceptions import ClientExceptions, AlreadyExistsException, DoesNotEx
 class Client:
 
     TIMEOUT = 5
-
-    port = 10080
+    CLIENT_PORT = 8080
+    SERVER_PORT = 10080
 
     host = socket.gethostbyname(socket.gethostname())
 
@@ -28,7 +28,7 @@ class Client:
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-        self.__startListen(Client.host, 8080)
+        self.__startListen(Client.host, Client.CLIENT_PORT)
         # self.__sockSemName = dict()
 
     def __del__(self):
@@ -53,11 +53,13 @@ class Client:
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(Client.TIMEOUT)
-            sock.connect((ip, Client.port))
+            sock.connect((ip, Client.SERVER_PORT))
             sock.send(bytes(message, 'ascii'))
             data = None
             try:
-                data = str(sock.recv(1024), 'ascii')
+                received_msg = ''
+                while '}' not in received_msg:
+                    received_msg += str(sock.recv(1024), 'ascii')
                 data = json.loads(data)
             except json.JSONDecodeError:
                 print(data)
@@ -72,7 +74,10 @@ class Client:
                             while True:
                                 response = None
                                 try:
-                                    data = json.loads(str(sock.recv(1024), 'ascii'))
+                                    received_msg = ''
+                                    while '}' not in received_msg:
+                                        received_msg += str(sock.recv(1024), 'ascii')
+                                    data = json.loads(received_msg)
                                 except json.JSONDecodeError:
                                     response = "{ \"result\" : \"ERROR\"," \
                                                "\"value\": \"Json decode error\"}"
@@ -144,9 +149,11 @@ class Client:
     def __send(self, ip, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(Client.TIMEOUT)
-            sock.connect((ip, Client.port))
+            sock.connect((ip, Client.SERVER_PORT))
             sock.send(bytes(message, 'ascii'))
-            response = str(sock.recv(1024), 'ascii')
+            response = ''
+            while '}' not in response:
+                response += str(sock.recv(1024), 'ascii')
 
             try:
                 response = json.loads(response)
@@ -170,7 +177,10 @@ class Client:
                 conn, addr = sock.accept()
                 response = None
                 try:
-                    data = json.loads(str(conn.recv(1024), 'ascii'))
+                    received_msg = ''
+					while '}' not in received_msg:
+                        received_msg += str(conn.recv(1024), 'ascii')
+                    data = json.loads(received_msg)
                 except json.JSONDecodeError:
                     self.logger.info(traceback.format_exc())
                 else:

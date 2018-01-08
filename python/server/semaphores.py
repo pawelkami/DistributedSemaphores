@@ -26,6 +26,7 @@ class WaitClient:
 class Semaphores:
 
     TIMEOUT = 5
+    CLIENT_PORT = 8080	
 
     def __init__(self):
         self.semaphores = dict()
@@ -70,7 +71,12 @@ class Semaphores:
                         ping = "{\"type\":\"PING\",\"sem_name\":\"%s\"}" % (name,)
                         while self.semaphores[name].queue.queue[0].addr != client:
                             sock.send(bytes(ping, 'ascii'))
-                            data = json.loads(str(sock.recv(1024), 'ascii'))
+
+                            received_msg = ''
+                            while '}' not in received_msg:
+                                received_msg += str(sock.recv(1024), 'ascii')
+
+                            data = json.loads(received_msg)
                             if data['type'] == 'PONG':
                                 logger.info("Wait {}".format(data))
                                 time.sleep(1)
@@ -147,14 +153,17 @@ class Semaphores:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                         sock.settimeout(Semaphores.TIMEOUT)
                         try:
-                            sock.connect((addr, 8080))
+                            sock.connect((addr, Semaphores.CLIENT_PORT))
                             sock.send(bytes(ping, 'ascii'))
                         except ConnectionRefusedError:
                             if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                                 self.semaphores[name].queue.get_nowait()
                         else:
                             try:
-                                data = json.loads(str(sock.recv(1024), 'ascii'))
+                                received_msg = ''
+                                while '}' not in received_msg:
+                                    received_msg += str(sock.recv(1024), 'ascii')
+                                data = json.loads(received_msg)
                                 logger.info("Inside {}".format(data))
                                 if data['type'] != "PONG":
                                     if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:

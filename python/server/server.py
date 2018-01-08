@@ -8,9 +8,10 @@ import socket
 import logging
 import sys
 
+SERVER_PORT = 8080
 
 class ThreadedTCPRequestHandler(BaseRequestHandler):
-
+    
     def handle(self):
         logger = logging.getLogger('server')
         data = None
@@ -19,7 +20,11 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
         # client_id = socket.gethostbyaddr(self.client_address[0])[0]
         # print(client_id)
         try:
-            data = json.loads(str(self.request.recv(4096), 'ascii'))
+            received_msg = ''
+            while '}' not in received_msg:
+                received_msg += str(self.request.recv(4096), 'ascii')
+            print("Received message: " + received_msg)
+            data = json.loads(received_msg)
         except json.JSONDecodeError:
             response = "{ \"type\" : \"ERROR\"," \
                        "\"value\": \"Json decode error\"}"
@@ -58,8 +63,8 @@ def run():
     logger = logging.getLogger('server')
     logger.setLevel(logging.DEBUG)
 
-    fh = logging.FileHandler('/home/server.log')
-    # fh = logging.StreamHandler(sys.stdout)
+    #fh = logging.FileHandler('/home/server.log')
+    fh = logging.StreamHandler(sys.stdout)
 
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -67,7 +72,7 @@ def run():
     logger.addHandler(fh)
 
     print(socket.gethostbyname(socket.gethostname()))
-    HOST, PORT = socket.gethostbyname(socket.gethostname()), 10080
+    HOST, PORT = socket.gethostname(), SERVER_PORT
 
     server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
     with server:

@@ -18,4 +18,4 @@ COPY *.py /server/
 # this line should be deleted after server implementation
 # ENTRYPOINT sleep 100000000
 
-CMD python3 /server/main.py
+CMD ["python3", "-u", "/server/main.py"]
