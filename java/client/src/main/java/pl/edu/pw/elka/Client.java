@@ -122,6 +122,14 @@ public class Client {
         }
     }
 
+    public void lock(String[] names) throws ClientException
+    {
+        for(String n : names)
+        {
+            lock(n);
+        }
+    }
+
     public void lock(String name) throws ClientException {
         String[] arr = splitSemaphoreName(name);
 
