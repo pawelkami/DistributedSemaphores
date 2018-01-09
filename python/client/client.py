@@ -21,8 +21,8 @@ class Client:
     def __init__(self):
         self.logger = logging.getLogger('server')
         self.logger.setLevel(logging.DEBUG)
-        # fh = logging.FileHandler('/home/client.log')
-        fh = logging.StreamHandler(sys.stdout)
+        fh = logging.FileHandler('/home/client.log')
+        # fh = logging.StreamHandler(sys.stdout)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)

@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 class Server {
 
     private ExecutorService executorService = Executors.newFixedThreadPool(10); // number of server threads
-    private final int PORT = 8080;
+    private final int PORT = 10080;
 
     Logger log = Logger.getLogger(Server.class.getName());
 
