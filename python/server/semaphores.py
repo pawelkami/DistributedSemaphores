@@ -61,7 +61,9 @@ class Semaphores:
         result = "{\"type\":\"LOCK\""
         client = clientAddr[:clientAddr.find(':')]
         if name in self.semaphores.keys():
-            if client not in list(self.semaphores[name].queue.queue) or client != self.semaphores[name].queue.queue[0].addr:
+            if self.semaphores[name].queue.empty() or \
+                    (client not in list(self.semaphores[name].queue.queue) and
+                     client != self.semaphores[name].queue.queue[0].addr):
                 if not self.semaphores[name].queue.empty():
                     self.semaphores[name].queue.put(WaitClient(client))
                     wait = "{\"type\":\"LOCK\",\"result\":\"WAIT\",\"sem_name\":\"%s\"}" % (name,)
@@ -95,7 +97,8 @@ class Semaphores:
             result += ",\"result\":\"ERROR\",\"message\":\"Semaphore %s doesn't exist\"" % (name,)
         return result + '}'
 
-    def v(self, sock, name, client):
+    def v(self, sock, name, clientAddr):
+        client = clientAddr[:clientAddr.find(':')]
         logger = logging.getLogger('server')
         result = "{\"type\":\"UNLOCK\""
         if name in self.semaphores.keys():

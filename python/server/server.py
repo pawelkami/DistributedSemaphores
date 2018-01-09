@@ -8,7 +8,7 @@ import socket
 import logging
 import sys
 
-SERVER_PORT = 8080
+SERVER_PORT = 10080
 
 class ThreadedTCPRequestHandler(BaseRequestHandler):
     
@@ -63,7 +63,7 @@ def run():
     logger = logging.getLogger('server')
     logger.setLevel(logging.DEBUG)
 
-    #fh = logging.FileHandler('/home/server.log')
+    # fh = logging.FileHandler('/home/server.log')
     fh = logging.StreamHandler(sys.stdout)
 
     fh.setLevel(logging.DEBUG)

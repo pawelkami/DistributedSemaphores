@@ -21,8 +21,8 @@ class Client:
     def __init__(self):
         self.logger = logging.getLogger('server')
         self.logger.setLevel(logging.DEBUG)
-        fh = logging.FileHandler('/home/client.log')
-        # fh = logging.StreamHandler(sys.stdout)
+        # fh = logging.FileHandler('/home/client.log')
+        fh = logging.StreamHandler(sys.stdout)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
@@ -60,7 +60,7 @@ class Client:
                 received_msg = ''
                 while '}' not in received_msg:
                     received_msg += str(sock.recv(1024), 'ascii')
-                data = json.loads(data)
+                data = json.loads(received_msg)
             except json.JSONDecodeError:
                 print(data)
                 raise Exception("Internal server error")
@@ -178,7 +178,7 @@ class Client:
                 response = None
                 try:
                     received_msg = ''
-					while '}' not in received_msg:
+                    while '}' not in received_msg:
                         received_msg += str(conn.recv(1024), 'ascii')
                     data = json.loads(received_msg)
                 except json.JSONDecodeError:
