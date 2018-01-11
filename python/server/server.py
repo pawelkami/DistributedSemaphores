@@ -11,7 +11,7 @@ import sys
 SERVER_PORT = 10080
 
 class ThreadedTCPRequestHandler(BaseRequestHandler):
-    
+
     def handle(self):
         logger = logging.getLogger('server')
         data = None

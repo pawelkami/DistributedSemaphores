@@ -11,7 +11,7 @@ services:
     cap_add:
       - NET_ADMIN
     depends_on:
-      - "server1"
+      - "server2"
   server1:
     build: server
   server2:

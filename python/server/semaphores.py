@@ -25,8 +25,8 @@ class WaitClient:
 
 class Semaphores:
 
-    TIMEOUT = 5
-    CLIENT_PORT = 8080	
+    TIMEOUT = 10
+    CLIENT_PORT = 8080
 
     def __init__(self):
         self.semaphores = dict()
@@ -61,12 +61,11 @@ class Semaphores:
         result = "{\"type\":\"LOCK\""
         client = clientAddr[:clientAddr.find(':')]
         if name in self.semaphores.keys():
-            if self.semaphores[name].queue.empty() or \
-                    (client not in list(self.semaphores[name].queue.queue) and
-                     client != self.semaphores[name].queue.queue[0].addr):
+            if client not in list(self.semaphores[name].queue.queue) or client != self.semaphores[name].queue.queue[0].addr:
                 if not self.semaphores[name].queue.empty():
                     self.semaphores[name].queue.put(WaitClient(client))
                     wait = "{\"type\":\"LOCK\",\"result\":\"WAIT\",\"sem_name\":\"%s\"}" % (name,)
+                    time.sleep(1)
                     try:
                         sock.settimeout(Semaphores.TIMEOUT)
                         sock.send(bytes(wait, 'ascii'))
@@ -85,6 +84,7 @@ class Semaphores:
                             else:
                                 raise socket.timeout
                     except (socket.timeout, json.JSONDecodeError):
+                        logger.info(traceback.format_exc())
                         i = 0
                         while self.semaphores[name].queue.queue[i].addr != client:
                             i += 1
@@ -148,7 +148,7 @@ class Semaphores:
                     clientQueue = list(self.semaphores[name].queue.queue)
                     if len(clientQueue) > 0:
                         addr = clientQueue[0].addr
-                    # print("First client address {}".format(addr))
+                        logger.info("First client on semaphore {} address {}".format(name, addr))
             except KeyError:
                 return
             else:

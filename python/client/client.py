@@ -12,14 +12,14 @@ from ClientExceptions import ClientExceptions, AlreadyExistsException, DoesNotEx
 
 class Client:
 
-    TIMEOUT = 5
+    TIMEOUT = 10
     CLIENT_PORT = 8080
     SERVER_PORT = 10080
 
     host = socket.gethostbyname(socket.gethostname())
 
     def __init__(self):
-        self.logger = logging.getLogger('server')
+        self.logger = logging.getLogger('client')
         self.logger.setLevel(logging.DEBUG)
         fh = logging.FileHandler('/home/client.log')
         # fh = logging.StreamHandler(sys.stdout)
@@ -27,7 +27,6 @@ class Client:
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
-
         self.__startListen(Client.host, Client.CLIENT_PORT)
         # self.__sockSemName = dict()
 
@@ -51,18 +50,25 @@ class Client:
         ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"LOCK\",\"sem_name\":\"%s\"}" % (semName,)
 
+        self.logger.info("{}.{} -> {}".format(serverName, semName, ip))
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(Client.TIMEOUT)
-            sock.connect((ip, Client.SERVER_PORT))
-            sock.send(bytes(message, 'ascii'))
+            try:
+                sock.settimeout(Client.TIMEOUT)
+                sock.connect((ip, Client.SERVER_PORT))
+                sock.send(bytes(message, 'ascii'))
+            except socket.timeout as e:
+                raise e
+
             data = None
             try:
                 received_msg = ''
                 while '}' not in received_msg:
                     received_msg += str(sock.recv(1024), 'ascii')
+                self.logger.info(received_msg)
                 data = json.loads(received_msg)
             except json.JSONDecodeError:
-                print(data)
+                self.logger.info("Inproper json {}".format(data))
                 raise Exception("Internal server error")
             else:
                 try:
@@ -113,7 +119,6 @@ class Client:
         serverName = semaphoreName[:it]
         semName = semaphoreName[it + 1:]
         ip = socket.gethostbyname(serverName)
-        ip = socket.gethostbyname(serverName)
         message = "{\"type\":\"UNLOCK\",\"sem_name\":\"%s\"}" % (semName,)
 
         self.__send(ip, message)
@@ -157,7 +162,7 @@ class Client:
 
             try:
                 response = json.loads(response)
-                self.logger.info(response['type'])
+                # self.logger.info(response['type'])
                 if response['result'] == 'ERROR':
                     ClientExceptions.castException(response['message'])
             except socket.timeout:
