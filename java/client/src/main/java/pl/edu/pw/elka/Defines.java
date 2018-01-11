@@ -7,6 +7,12 @@ public class Defines {
     public static final String JSON_SEMAPHORE_NAME = "sem_name";
     public static final String JSON_MESSAGE = "message";
 
+    // JSON for client - client (deadlock detection)
+    public static final String JSON_BLOCKED_ID = "blocked_client_id";
+    public static final String JSON_SRC_CLIENT_ID = "src_client_id";
+    public static final String JSON_DST_CLIENT_ID = "dst_client_id";
+
+
     // client -> server
     public static final String OPERATION_CREATE_SEMAPHORE = "CREATE";
     public static final String OPERATION_LOCK = "LOCK";

@@ -8,8 +8,11 @@ import com.sun.jmx.remote.util.ClassLogger;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 
@@ -56,16 +59,79 @@ public class ClientRequestHandler implements Runnable {
         //log.info("Handling JSON request");
         JsonElement opJson = json.get("type");
 
-        if(!json.has(Defines.JSON_SEMAPHORE_NAME))
-        {
+        try {
+            switch(opJson.getAsString())
+            {
+                case Defines.OPERATION_PING:
+                    handlePing(json);
+                    break;
+
+                case Defines.OPERATION_PROBE:
+                        handleProbe(json);
+                    break;
+            }
+        } catch (ClientException e) {
+            e.printStackTrace();
+        }
+
+
+
+    }
+
+    private void handleProbe(JsonObject json) throws ClientException {
+        log.info("HANDLING PROBE: " + json.toString());
+        if(!json.has(Defines.JSON_OPERATION_TYPE) && !json.has(Defines.JSON_BLOCKED_ID) && !json.has(Defines.JSON_DST_CLIENT_ID) && !json.has(Defines.JSON_SRC_CLIENT_ID)) {
             return;
         }
 
-        switch(opJson.getAsString())
+        String blockedId = json.get(Defines.JSON_BLOCKED_ID).getAsString();
+        String clientSrc = json.get(Defines.JSON_SRC_CLIENT_ID).getAsString();
+        String clientDst = json.get(Defines.JSON_DST_CLIENT_ID).getAsString();
+
+        if(blockedId.equalsIgnoreCase(clientDst))
         {
-            case Defines.OPERATION_PING:
-                handlePing(json);
-                break;
+            log.warning("DEADLOCK DETECTED!!!");
+            return;
+        }
+
+        // if we are waiting for resources, prepare probe message for send
+        if(CreatedSemaphores.getInstance().checkIfWaitingForAnySemaphore())
+        {
+            Client client = new Client();
+
+            List<Semaphore> semaphoreList = CreatedSemaphores.getInstance().getSemaphoreList();
+            for(Semaphore s : semaphoreList)
+            {
+                if(s.isWaiting)
+                {
+                    String lockedClient = client.getAwaiting(s.name);
+                    if(lockedClient.isEmpty())
+                        continue;
+
+                    JsonObject probeToSend = new JsonObject();
+                    json.addProperty(Defines.JSON_OPERATION_TYPE, Defines.OPERATION_PROBE);
+                    json.addProperty(Defines.JSON_BLOCKED_ID, blockedId);
+                    json.addProperty(Defines.JSON_DST_CLIENT_ID, lockedClient);
+                    try {
+                        json.addProperty(Defines.JSON_SRC_CLIENT_ID, InetAddress.getLocalHost().getHostAddress());
+                    } catch (UnknownHostException e) {
+                        e.printStackTrace();
+                    }
+
+                    try(Socket socket = new Socket(lockedClient, RequestListener.CLIENT_PORT))
+                    {
+                        client.send(socket, json.toString());
+
+                    } catch (UnknownHostException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+
+                }
+            }
+
         }
 
 

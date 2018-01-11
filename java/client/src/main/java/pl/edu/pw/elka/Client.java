@@ -1,9 +1,6 @@
 package pl.edu.pw.elka;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
+import com.google.gson.*;
 
 import java.io.*;
 import java.net.*;
@@ -11,7 +8,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 public class Client {
-    private static final int SERVER_PORT = 8080;
+    private static final int SERVER_PORT = 10080;
     private static final int TIMEOUT = 5000;
     private static final int BUF_SIZE = 1024;
     private Logger log = Logger.getLogger(Client.class.getName());
@@ -20,7 +17,7 @@ public class Client {
 
     }
 
-    private void send(Socket socket, String msg) throws IOException {
+    public void send(Socket socket, String msg) throws IOException {
         DataOutputStream sockOut = new DataOutputStream(socket.getOutputStream());
 
         sockOut.writeBytes(msg);
@@ -28,7 +25,7 @@ public class Client {
     }
 
 
-    private String recv(Socket socket) throws IOException {
+    public String recv(Socket socket) throws IOException {
         byte[] byteArr = new byte[BUF_SIZE];
         StringBuilder clientData = new StringBuilder();
         String redDataText;
@@ -54,7 +51,7 @@ public class Client {
         return clientData.toString();
     }
 
-    private String sendAndReceive(Socket socket, String msg) throws IOException {
+    public String sendAndReceive(Socket socket, String msg) throws IOException {
         send(socket, msg);
         return recv(socket);
     }
@@ -152,12 +149,23 @@ public class Client {
             String result = jsonResponse.get(Defines.JSON_RESULT).getAsString();
             if(result.equals(Defines.RESPONSE_ENTER)) {
                 log.info("Entering critical section");
+
+                Semaphore s = new Semaphore();
+                s.isWaiting = false;
+                s.name = name;
+                CreatedSemaphores.getInstance().addSemaphore(s);
                 return;
             }
 
             // PING-PONG
             if(result.equals(Defines.RESPONSE_WAIT))
             {
+                Semaphore s = new Semaphore();
+                s.isWaiting = true;
+                s.name = name;
+                CreatedSemaphores.getInstance().addSemaphore(s);
+
+                initializeDeadlockCheck(name);
                 while(true)
                 {
                     response = recv(socket);
@@ -175,12 +183,12 @@ public class Client {
                     else if(jsonResponse.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_ENTER))
                     {
                         log.info("Entering critical section");
+
+                        CreatedSemaphores.getInstance().changeSemaphoreWaitStatus(name, false);
                         return;
                     }
                 }
             }
-
-
 
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -189,6 +197,37 @@ public class Client {
             e.printStackTrace();
             throw new ClientException("Could not get connect to '" + serverName + "'");
         }
+
+    }
+
+    private void initializeDeadlockCheck(String name) throws ClientException {
+        String criticalSectionClient = getAwaiting(name);
+
+        // if here is no client - don't check - probably we are in critical section right now
+        if(criticalSectionClient.isEmpty())
+            return;
+
+        JsonObject json = new JsonObject();
+        json.addProperty(Defines.JSON_OPERATION_TYPE, Defines.OPERATION_PROBE);
+        try {
+            json.addProperty(Defines.JSON_BLOCKED_ID, InetAddress.getLocalHost().getHostAddress());
+            json.addProperty(Defines.JSON_SRC_CLIENT_ID, InetAddress.getLocalHost().getHostAddress());
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
+        json.addProperty(Defines.JSON_DST_CLIENT_ID, criticalSectionClient);
+
+        try(Socket s = new Socket(criticalSectionClient, RequestListener.CLIENT_PORT))
+        {
+            send(s, json.toString());
+
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
     }
 
@@ -222,6 +261,7 @@ public class Client {
         if(response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_OK))
         {
             log.info("Semaphore " + name + " unlocked.");
+            CreatedSemaphores.getInstance().deleteSemaphore(name);
         }
         else
         {
@@ -229,7 +269,7 @@ public class Client {
         }
     }
 
-    public void getAwaiting(String name) throws ClientException {
+    public String getAwaiting(String name) throws ClientException {
         String[] arr = splitSemaphoreName(name);
 
         JsonObject json = new JsonObject();
@@ -237,6 +277,23 @@ public class Client {
         json.addProperty(Defines.JSON_SEMAPHORE_NAME, arr[1]);
 
         JsonObject response = sendToServer(json, arr[0]);
-        // todo
+
+        if(checkResponseFormat(response))
+        {
+            JsonArray semaphores = response.get(Defines.JSON_RESULT).getAsJsonArray();
+            if(semaphores.size() > 1)
+            {
+                String lockedSemaphore = semaphores.get(0).getAsString();   // first client in list - it is in critical section
+                // TODO check if lockedsemaphore isn't us - there could be race
+
+                return lockedSemaphore;
+            }
+
+            return "";
+        }
+        else
+        {
+            throw new ClientException("Get awaiting response format is invalid");
+        }
     }
 }

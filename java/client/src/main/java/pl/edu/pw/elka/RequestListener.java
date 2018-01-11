@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 class RequestListener implements Runnable {
 
     private ExecutorService executorService = Executors.newFixedThreadPool(10); // number of server threads
-    private final int PORT = 8080;
+    public static final int CLIENT_PORT = 8080;
 
     Logger log = Logger.getLogger(RequestListener.class.getName());
 
@@ -25,7 +25,7 @@ class RequestListener implements Runnable {
     public void run()
     {
         //log.info("Creating socket...");
-        try(ServerSocket serverSocket = new ServerSocket(PORT))
+        try(ServerSocket serverSocket = new ServerSocket(CLIENT_PORT))
         {
             while(true) {
 //                log.info("Waiting for request...");
@@ -43,7 +43,7 @@ class RequestListener implements Runnable {
         }
         catch(IOException e)
         {
-            log.warning("Error starting server at port " + PORT);
+            log.warning("Error starting server at port " + CLIENT_PORT);
             e.printStackTrace();
         }
     }
