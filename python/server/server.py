@@ -23,7 +23,7 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
             received_msg = ''
             while '}' not in received_msg:
                 received_msg += str(self.request.recv(4096), 'ascii')
-            print("Received message: " + received_msg)
+            logger.info("Received message: " + received_msg)
             data = json.loads(received_msg)
         except json.JSONDecodeError:
             response = "{ \"type\" : \"ERROR\"," \

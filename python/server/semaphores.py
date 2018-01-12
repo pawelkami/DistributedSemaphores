@@ -65,10 +65,10 @@ class Semaphores:
                 if not self.semaphores[name].queue.empty():
                     self.semaphores[name].queue.put(WaitClient(client))
                     wait = "{\"type\":\"LOCK\",\"result\":\"WAIT\",\"sem_name\":\"%s\"}" % (name,)
-                    time.sleep(1)
                     try:
                         sock.settimeout(Semaphores.TIMEOUT)
                         sock.send(bytes(wait, 'ascii'))
+                        time.sleep(1)
                         ping = "{\"type\":\"PING\",\"sem_name\":\"%s\"}" % (name,)
                         while self.semaphores[name].queue.queue[0].addr != client:
                             sock.send(bytes(ping, 'ascii'))
@@ -148,7 +148,7 @@ class Semaphores:
                     clientQueue = list(self.semaphores[name].queue.queue)
                     if len(clientQueue) > 0:
                         addr = clientQueue[0].addr
-                        logger.info("First client on semaphore {} address {}".format(name, addr))
+                        # logger.info("First client on semaphore {} address {}".format(name, addr))
             except KeyError:
                 return
             else:
