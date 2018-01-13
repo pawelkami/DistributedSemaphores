@@ -1,0 +1,37 @@
+version: '3'
+services:
+  java_client1:
+    build: java/client
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - "java_server1"
+  java_client2:
+    build: java/client
+    cap_add:
+     - NET_ADMIN
+    depends_on:
+     - "java_server1"
+  python_client1:
+    build: python/client
+    cap_add:
+     - NET_ADMIN
+    depends_on:
+     - "python_server1"
+  python_client2:
+    build: python/client
+    cap_add:
+     - NET_ADMIN
+    depends_on:
+     - "python_server1"
+
+  java_server1:
+    build: java/server
+  java_server2:
+    build: java/server
+  python_server1:
+    build: python/server
+  python_server2:
+    build: python/server
+
+     

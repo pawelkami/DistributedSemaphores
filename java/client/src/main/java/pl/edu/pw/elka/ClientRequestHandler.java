@@ -67,18 +67,17 @@ public class ClientRequestHandler implements Runnable {
                     break;
 
                 case Defines.OPERATION_PROBE:
-                        handleProbe(json);
+                    handleProbe(json);
                     break;
             }
-        } catch (ClientException e) {
+        } catch (ClientException | UnknownHostException e) {
             e.printStackTrace();
         }
 
 
-
     }
 
-    private void handleProbe(JsonObject json) throws ClientException {
+    private void handleProbe(JsonObject json) throws ClientException, UnknownHostException {
         log.info("HANDLING PROBE: " + json.toString());
         if(!json.has(Defines.JSON_OPERATION_TYPE) && !json.has(Defines.JSON_BLOCKED_ID) && !json.has(Defines.JSON_DST_CLIENT_ID) && !json.has(Defines.JSON_SRC_CLIENT_ID)) {
             return;
@@ -122,8 +121,6 @@ public class ClientRequestHandler implements Runnable {
                     {
                         client.send(socket, json.toString());
 
-                    } catch (UnknownHostException e) {
-                        e.printStackTrace();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }

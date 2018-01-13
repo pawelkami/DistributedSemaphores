@@ -112,11 +112,11 @@ public class RequestHandler implements Runnable {
         String semaphoreName = json.get(Defines.JSON_SEMAPHORE_NAME).getAsString();
 
         JsonObject response = new JsonObject();
-        response.addProperty("type", json.get(Defines.JSON_OPERATION_TYPE).getAsString());
-        response.addProperty("sem_name", semaphoreName);
+        response.addProperty(Defines.JSON_OPERATION_TYPE, json.get(Defines.JSON_OPERATION_TYPE).getAsString());
+        response.addProperty(Defines.JSON_SEMAPHORE_NAME, semaphoreName);
+        response.addProperty(Defines.JSON_RESULT, Defines.RESPONSE_AWAITING);
 
         Queue<String> q = ServerContext.getInstance().getClientQueue(semaphoreName);
-        //List<String> l = (List)q;
 
         JsonArray jsonArray = new JsonArray();
         if(q != null)
@@ -127,7 +127,7 @@ public class RequestHandler implements Runnable {
             }
         }
 
-        response.add("result", jsonArray);
+        response.add(Defines.JSON_MESSAGE, jsonArray);
 
         send(response);
 

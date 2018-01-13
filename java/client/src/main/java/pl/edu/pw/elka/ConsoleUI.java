@@ -1,5 +1,6 @@
 package pl.edu.pw.elka;
 
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -21,7 +22,6 @@ public class ConsoleUI
         System.out.println("delete - delete semaphore");
         System.out.println("lock - lock semaphore");
         System.out.println("unlock - unlock semaphore");
-        System.out.println("deadlock - test for deadlock");
         System.out.println("awaiting - get list of awaiting clients");
         System.out.println("exit - exit client");
         System.out.println("");
@@ -42,7 +42,7 @@ public class ConsoleUI
             String operation = commands[0];
             String[] sem_names = null;
 
-            if(!operation.equals("deadlock") && !operation.equals("exit")) {
+            if(!operation.equals("exit")) {
                 if(commands.length < 2)
                 {
                     System.out.println("Wrong command");
@@ -75,9 +75,6 @@ public class ConsoleUI
                         client.getAwaiting(sem_names[0]);
                         break;
 
-                    case "deadlock":
-                        break;
-
                     case "exit":
                         System.exit(0);
                         break;
@@ -86,7 +83,7 @@ public class ConsoleUI
                         break;
                 }
             }
-            catch (ClientException e) {
+            catch (ClientException | UnknownHostException e) {
                 e.printStackTrace();
             }
 

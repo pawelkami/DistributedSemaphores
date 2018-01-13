@@ -200,7 +200,7 @@ public class Client {
 
     }
 
-    private void initializeDeadlockCheck(String name) throws ClientException {
+    private void initializeDeadlockCheck(String name) throws ClientException, UnknownHostException {
         String criticalSectionClient = getAwaiting(name);
 
         // if here is no client - don't check - probably we are in critical section right now
@@ -222,8 +222,6 @@ public class Client {
         {
             send(s, json.toString());
 
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -269,7 +267,7 @@ public class Client {
         }
     }
 
-    public String getAwaiting(String name) throws ClientException {
+    public String getAwaiting(String name) throws ClientException, UnknownHostException {
         String[] arr = splitSemaphoreName(name);
 
         JsonObject json = new JsonObject();
@@ -280,11 +278,14 @@ public class Client {
 
         if(checkResponseFormat(response))
         {
-            JsonArray semaphores = response.get(Defines.JSON_RESULT).getAsJsonArray();
+            JsonArray semaphores = response.get(Defines.JSON_MESSAGE).getAsJsonArray();
             if(semaphores.size() > 1)
             {
-                String lockedSemaphore = semaphores.get(0).getAsString();   // first client in list - it is in critical section
-                // TODO check if lockedsemaphore isn't us - there could be race
+                String lockedSemaphore = semaphores.get(0).getAsString();   // first client in list - current critical section owner
+                if(lockedSemaphore.equalsIgnoreCase(InetAddress.getLocalHost().getHostAddress()))
+                {
+                    return "";
+                }
 
                 return lockedSemaphore;
             }
