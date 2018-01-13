@@ -51,4 +51,21 @@ public class CreatedSemaphores {
 
         return false;
     }
+
+    public void setDeadlocks() {
+        for (Semaphore s : semaphoreList) {
+            if (s.isWaiting) {
+                s.isDeadlock = true;
+            }
+        }
+    }
+
+    public boolean getDeadlock(String name) {
+        for(Semaphore s : semaphoreList) {
+            if(s.name.equalsIgnoreCase(name)){
+                return s.isDeadlock;
+            }
+        }
+        return false;
+    }
 }

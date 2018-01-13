@@ -158,6 +158,10 @@ public class Client {
 
                 initializeDeadlockCheck(name);
                 while (true) {
+                    if(CreatedSemaphores.getInstance().getDeadlock(name)){
+                        throw new ClientException("DEADLOCK detected. Unlocking semaphores.");
+                    }
+
                     response = recv(socket);
                     parser = new JsonParser();
                     jsonResponse = parser.parse(response).getAsJsonObject();

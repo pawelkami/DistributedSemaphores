@@ -82,6 +82,7 @@ public class ClientRequestHandler implements Runnable {
 
         if (blockedId.equalsIgnoreCase(clientDst)) {
             log.warning("DEADLOCK DETECTED!!!");
+            CreatedSemaphores.getInstance().setDeadlocks();
             return;
         }
 
@@ -112,7 +113,7 @@ public class ClientRequestHandler implements Runnable {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    
+
                 }
             }
 
