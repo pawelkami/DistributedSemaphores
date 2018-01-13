@@ -36,10 +36,4 @@ public class Defines {
     public static final String OPERATION_PROBE = "PROBE";
 
 
-
-
-
-
-
-
 }

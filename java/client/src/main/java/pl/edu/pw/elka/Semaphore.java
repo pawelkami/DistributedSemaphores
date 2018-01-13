@@ -1,12 +1,10 @@
 package pl.edu.pw.elka;
 
-public class Semaphore
-{
+public class Semaphore {
     public String name;
     public boolean isWaiting;
 
-    public Semaphore()
-    {
+    public Semaphore() {
         name = "";
         isWaiting = true;
     }

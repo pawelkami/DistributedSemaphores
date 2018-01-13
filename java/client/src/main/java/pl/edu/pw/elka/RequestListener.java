@@ -16,33 +16,28 @@ class RequestListener implements Runnable {
     Logger log = Logger.getLogger(RequestListener.class.getName());
 
 
-    RequestListener()
-    {
+    RequestListener() {
 
     }
 
     @Override
-    public void run()
-    {
+    public void run() {
         //log.info("Creating socket...");
-        try(ServerSocket serverSocket = new ServerSocket(CLIENT_PORT))
-        {
-            while(true) {
+        try (ServerSocket serverSocket = new ServerSocket(CLIENT_PORT)) {
+            while (true) {
 //                log.info("Waiting for request...");
                 try {
                     Socket s = serverSocket.accept();
 //                    log.info("Processing request");
                     executorService.submit(new ClientRequestHandler(s));
-                } catch(IOException ioe) {
+                } catch (IOException ioe) {
                     log.warning("Error accepting connection");
                     ioe.printStackTrace();
                 }
 
             }
 
-        }
-        catch(IOException e)
-        {
+        } catch (IOException e) {
             log.warning("Error starting server at port " + CLIENT_PORT);
             e.printStackTrace();
         }

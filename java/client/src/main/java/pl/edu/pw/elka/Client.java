@@ -1,9 +1,14 @@
 package pl.edu.pw.elka;
 
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
-import java.io.*;
-import java.net.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -32,20 +37,17 @@ public class Client {
         byte[] redData;
         int red = -1;
 
-        do
-        {
-            if((red = socket.getInputStream().read(byteArr)) == -1)
-            {
+        do {
+            if ((red = socket.getInputStream().read(byteArr)) == -1) {
                 log.warning("Problem reading socket stream");
                 throw new IOException("Problem reading socket stream");
             }
 
             redData = new byte[red];
             System.arraycopy(byteArr, 0, redData, 0, red);
-            redDataText = new String(redData,"UTF-8"); // assumption that client sends data UTF-8 encoded
-            log.info("message part received:" + redDataText + "len: " + red);
+            redDataText = new String(redData, "UTF-8"); // assumption that client sends data UTF-8 encoded
             clientData.append(redDataText);
-        } while(clientData.lastIndexOf("}") == -1);
+        } while (clientData.lastIndexOf("}") == -1);
         log.info("Received: " + clientData.toString());
 
         return clientData.toString();
@@ -56,8 +58,7 @@ public class Client {
         return recv(socket);
     }
 
-    private JsonObject sendToServer(JsonObject json, String serverName) throws ClientException
-    {
+    private JsonObject sendToServer(JsonObject json, String serverName) throws ClientException {
         try (Socket socket = new Socket(serverName, SERVER_PORT)) {
             socket.setSoTimeout(TIMEOUT);
 
@@ -66,7 +67,7 @@ public class Client {
             JsonParser parser = new JsonParser();
             JsonObject jsonResponse = parser.parse(response).getAsJsonObject();
 
-            if(!checkResponseFormat(jsonResponse))
+            if (!checkResponseFormat(jsonResponse))
                 throw new ClientException("Wrong format of received response");
 
             return jsonResponse;
@@ -80,8 +81,7 @@ public class Client {
         }
     }
 
-    void createSemaphore(String name) throws ClientException
-    {
+    void createSemaphore(String name) throws ClientException {
         String[] arr = splitSemaphoreName(name);
 
         JsonObject json = new JsonObject();
@@ -90,12 +90,9 @@ public class Client {
 
         JsonObject response = sendToServer(json, arr[0]);
 
-        if(response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_CREATED_SEMAPHORE))
-        {
+        if (response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_CREATED_SEMAPHORE)) {
             log.info("Semaphore " + name + " was created.");
-        }
-        else
-        {
+        } else {
             log.info("Error: " + response.get(Defines.RESPONSE_ERROR));
         }
     }
@@ -109,20 +106,15 @@ public class Client {
 
         JsonObject response = sendToServer(json, arr[0]);
 
-        if(response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_OK))
-        {
+        if (response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_OK)) {
             log.info("Semaphore " + name + " was deleted.");
-        }
-        else
-        {
+        } else {
             log.info("Error: " + response.get(Defines.RESPONSE_ERROR));
         }
     }
 
-    public void lock(String[] names) throws ClientException
-    {
-        for(String n : names)
-        {
+    public void lock(String[] names) throws ClientException {
+        for (String n : names) {
             lock(n);
         }
     }
@@ -143,11 +135,11 @@ public class Client {
             JsonParser parser = new JsonParser();
             JsonObject jsonResponse = parser.parse(response).getAsJsonObject();
 
-            if(!checkResponseFormat(jsonResponse))
+            if (!checkResponseFormat(jsonResponse))
                 throw new ClientException("Wrong format of received response");
 
             String result = jsonResponse.get(Defines.JSON_RESULT).getAsString();
-            if(result.equals(Defines.RESPONSE_ENTER)) {
+            if (result.equals(Defines.RESPONSE_ENTER)) {
                 log.info("Entering critical section");
 
                 Semaphore s = new Semaphore();
@@ -158,30 +150,25 @@ public class Client {
             }
 
             // PING-PONG
-            if(result.equals(Defines.RESPONSE_WAIT))
-            {
+            if (result.equals(Defines.RESPONSE_WAIT)) {
                 Semaphore s = new Semaphore();
                 s.isWaiting = true;
                 s.name = name;
                 CreatedSemaphores.getInstance().addSemaphore(s);
 
                 initializeDeadlockCheck(name);
-                while(true)
-                {
+                while (true) {
                     response = recv(socket);
                     parser = new JsonParser();
                     jsonResponse = parser.parse(response).getAsJsonObject();
 
-                    if(jsonResponse.get(Defines.JSON_OPERATION_TYPE).getAsString().equals(Defines.OPERATION_PING))
-                    {
+                    if (jsonResponse.get(Defines.JSON_OPERATION_TYPE).getAsString().equals(Defines.OPERATION_PING)) {
                         json = new JsonObject();
                         json.addProperty(Defines.JSON_OPERATION_TYPE, Defines.RESPONSE_PONG);
                         json.addProperty(Defines.JSON_SEMAPHORE_NAME, name);
 
                         send(socket, json.toString());
-                    }
-                    else if(jsonResponse.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_ENTER))
-                    {
+                    } else if (jsonResponse.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_ENTER)) {
                         log.info("Entering critical section");
 
                         CreatedSemaphores.getInstance().changeSemaphoreWaitStatus(name, false);
@@ -204,7 +191,7 @@ public class Client {
         String criticalSectionClient = getAwaiting(name);
 
         // if here is no client - don't check - probably we are in critical section right now
-        if(criticalSectionClient.isEmpty())
+        if (criticalSectionClient.isEmpty())
             return;
 
         JsonObject json = new JsonObject();
@@ -218,8 +205,7 @@ public class Client {
 
         json.addProperty(Defines.JSON_DST_CLIENT_ID, criticalSectionClient);
 
-        try(Socket s = new Socket(criticalSectionClient, RequestListener.CLIENT_PORT))
-        {
+        try (Socket s = new Socket(criticalSectionClient, RequestListener.CLIENT_PORT)) {
             send(s, json.toString());
 
         } catch (IOException e) {
@@ -242,8 +228,7 @@ public class Client {
         return arr;
     }
 
-    private boolean checkResponseFormat(JsonObject json)
-    {
+    private boolean checkResponseFormat(JsonObject json) {
         return json.has(Defines.JSON_OPERATION_TYPE) && json.has(Defines.JSON_SEMAPHORE_NAME) && json.has(Defines.JSON_RESULT);
     }
 
@@ -256,13 +241,10 @@ public class Client {
 
         JsonObject response = sendToServer(json, arr[0]);
 
-        if(response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_OK))
-        {
+        if (response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_OK)) {
             log.info("Semaphore " + name + " unlocked.");
             CreatedSemaphores.getInstance().deleteSemaphore(name);
-        }
-        else
-        {
+        } else {
             log.info("Error: " + response.get(Defines.RESPONSE_ERROR));
         }
     }
@@ -276,14 +258,11 @@ public class Client {
 
         JsonObject response = sendToServer(json, arr[0]);
 
-        if(checkResponseFormat(response))
-        {
+        if (checkResponseFormat(response)) {
             JsonArray semaphores = response.get(Defines.JSON_MESSAGE).getAsJsonArray();
-            if(semaphores.size() > 1)
-            {
+            if (semaphores.size() > 1) {
                 String lockedSemaphore = semaphores.get(0).getAsString();   // first client in list - current critical section owner
-                if(lockedSemaphore.equalsIgnoreCase(InetAddress.getLocalHost().getHostAddress()))
-                {
+                if (lockedSemaphore.equalsIgnoreCase(InetAddress.getLocalHost().getHostAddress())) {
                     return "";
                 }
 
@@ -291,9 +270,7 @@ public class Client {
             }
 
             return "";
-        }
-        else
-        {
+        } else {
             throw new ClientException("Get awaiting response format is invalid");
         }
     }

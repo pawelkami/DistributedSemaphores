@@ -4,18 +4,15 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Scanner;
 
-public class ConsoleUI
-{
+public class ConsoleUI {
 
     private Client client;
 
-    ConsoleUI()
-    {
+    ConsoleUI() {
         client = new Client();
     }
 
-    private void printMenu()
-    {
+    private void printMenu() {
         System.out.println("");
         System.out.println("Choose one of options. Usage: option semaphore_name. Semaphore name should be formatted as server_name.semaphore_name");
         System.out.println("create - creating semaphore");
@@ -29,10 +26,8 @@ public class ConsoleUI
     }
 
 
-    public void run()
-    {
-        while(true)
-        {
+    public void run() {
+        while (true) {
             printMenu();
             Scanner input = new Scanner(System.in);
 
@@ -42,9 +37,8 @@ public class ConsoleUI
             String operation = commands[0];
             String[] sem_names = null;
 
-            if(!operation.equals("exit")) {
-                if(commands.length < 2)
-                {
+            if (!operation.equals("exit")) {
+                if (commands.length < 2) {
                     System.out.println("Wrong command");
                     continue;
                 }
@@ -82,8 +76,7 @@ public class ConsoleUI
                     default:
                         break;
                 }
-            }
-            catch (ClientException | UnknownHostException e) {
+            } catch (ClientException | UnknownHostException e) {
                 e.printStackTrace();
             }
 

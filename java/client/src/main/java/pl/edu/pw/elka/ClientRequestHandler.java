@@ -3,7 +3,6 @@ package pl.edu.pw.elka;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.sun.jmx.remote.util.ClassLogger;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -13,7 +12,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 
 public class ClientRequestHandler implements Runnable {
@@ -31,8 +29,7 @@ public class ClientRequestHandler implements Runnable {
     @Override
     public void run() {
 
-        try
-        {
+        try {
             String clientData = recv();
 
             //log.info("Data From Client :" + clientData);
@@ -45,12 +42,9 @@ public class ClientRequestHandler implements Runnable {
         }
 
         // close socket
-        try
-        {
+        try {
             socket.close();
-        }
-        catch(IOException ioe)
-        {
+        } catch (IOException ioe) {
             log.warning("Error closing client connection");
         }
     }
@@ -60,8 +54,7 @@ public class ClientRequestHandler implements Runnable {
         JsonElement opJson = json.get("type");
 
         try {
-            switch(opJson.getAsString())
-            {
+            switch (opJson.getAsString()) {
                 case Defines.OPERATION_PING:
                     handlePing(json);
                     break;
@@ -79,7 +72,7 @@ public class ClientRequestHandler implements Runnable {
 
     private void handleProbe(JsonObject json) throws ClientException, UnknownHostException {
         log.info("HANDLING PROBE: " + json.toString());
-        if(!json.has(Defines.JSON_OPERATION_TYPE) && !json.has(Defines.JSON_BLOCKED_ID) && !json.has(Defines.JSON_DST_CLIENT_ID) && !json.has(Defines.JSON_SRC_CLIENT_ID)) {
+        if (!json.has(Defines.JSON_OPERATION_TYPE) && !json.has(Defines.JSON_BLOCKED_ID) && !json.has(Defines.JSON_DST_CLIENT_ID) && !json.has(Defines.JSON_SRC_CLIENT_ID)) {
             return;
         }
 
@@ -87,24 +80,20 @@ public class ClientRequestHandler implements Runnable {
         String clientSrc = json.get(Defines.JSON_SRC_CLIENT_ID).getAsString();
         String clientDst = json.get(Defines.JSON_DST_CLIENT_ID).getAsString();
 
-        if(blockedId.equalsIgnoreCase(clientDst))
-        {
+        if (blockedId.equalsIgnoreCase(clientDst)) {
             log.warning("DEADLOCK DETECTED!!!");
             return;
         }
 
         // if we are waiting for resources, prepare probe message for send
-        if(CreatedSemaphores.getInstance().checkIfWaitingForAnySemaphore())
-        {
+        if (CreatedSemaphores.getInstance().checkIfWaitingForAnySemaphore()) {
             Client client = new Client();
 
             List<Semaphore> semaphoreList = CreatedSemaphores.getInstance().getSemaphoreList();
-            for(Semaphore s : semaphoreList)
-            {
-                if(s.isWaiting)
-                {
+            for (Semaphore s : semaphoreList) {
+                if (s.isWaiting) {
                     String lockedClient = client.getAwaiting(s.name);
-                    if(lockedClient.isEmpty())
+                    if (lockedClient.isEmpty())
                         continue;
 
                     JsonObject probeToSend = new JsonObject();
@@ -117,30 +106,24 @@ public class ClientRequestHandler implements Runnable {
                         e.printStackTrace();
                     }
 
-                    try(Socket socket = new Socket(lockedClient, RequestListener.CLIENT_PORT))
-                    {
+                    try (Socket socket = new Socket(lockedClient, RequestListener.CLIENT_PORT)) {
                         client.send(socket, json.toString());
 
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-
-
+                    
                 }
             }
 
         }
-
-
-
     }
 
     private void handlePing(JsonObject json) {
         sendResponse(Defines.RESPONSE_PONG, json.get(Defines.JSON_SEMAPHORE_NAME).getAsString(), "");
     }
 
-    private void sendResponse(String type, String semName, String result)
-    {
+    private void sendResponse(String type, String semName, String result) {
         JsonObject json = new JsonObject();
         json.addProperty("type", type);
         json.addProperty("sem_name", semName);
@@ -149,8 +132,7 @@ public class ClientRequestHandler implements Runnable {
         send(json);
     }
 
-    private void sendErrorResponse(String type, String semName, String result, String message)
-    {
+    private void sendErrorResponse(String type, String semName, String result, String message) {
         JsonObject json = new JsonObject();
         json.addProperty("type", type);
         json.addProperty("sem_name", semName);
@@ -160,19 +142,15 @@ public class ClientRequestHandler implements Runnable {
         send(json);
     }
 
-    private void send(JsonObject json)
-    {
-        try
-        {
+    private void send(JsonObject json) {
+        try {
             OutputStream os = socket.getOutputStream();
             DataOutputStream dos = new DataOutputStream(os);
             dos.writeBytes(json.toString());
 
             //log.info("Sending: " + json.toString());
             dos.flush();
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -185,20 +163,17 @@ public class ClientRequestHandler implements Runnable {
         byte[] redData;
         int red = -1;
 
-        do
-        {
-            if((red = socket.getInputStream().read(byteArr)) == -1)
-            {
+        do {
+            if ((red = socket.getInputStream().read(byteArr)) == -1) {
                 log.warning("Problem reading socket stream");
                 throw new IOException("Problem reading socket stream");
             }
 
             redData = new byte[red];
             System.arraycopy(byteArr, 0, redData, 0, red);
-            redDataText = new String(redData,"UTF-8"); // assumption that client sends data UTF-8 encoded
+            redDataText = new String(redData, "UTF-8"); // assumption that client sends data UTF-8 encoded
             clientData.append(redDataText);
-        } while(clientData.lastIndexOf("}") == -1);
-        //log.info("Received: " + clientData.toString());
+        } while (clientData.lastIndexOf("}") == -1);
 
         return clientData.toString();
     }
