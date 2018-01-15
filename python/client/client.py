@@ -9,7 +9,12 @@ import sys
 import time
 from ClientExceptions import ClientExceptions, AlreadyExistsException, DoesNotExistException, AbandonedException
 
-
+"""
+Klasa klienta implementujaca logike odpowiedzialna za
+zarzadzanie semaforami na zdalnych serwerach. Dodatkowo
+klient potrafi komunikowac sie z innymi klientami w celu
+wykrywania zakleszczeń
+"""
 class Client:
 
     TIMEOUT = 5

@@ -10,6 +10,15 @@ import sys
 
 SERVER_PORT = 10080
 
+"""
+Klasa do obslugi zadan przychodzacych do serwera. 
+Implementuje metode handle, ktora jest wywolywana, dla 
+kazdego zadania przychodzacego do serwera. W metodzie tej
+nastepuje weryfikacja typu przybylej wiadomosci i wywolanie
+odpowiedniej metody biblioteki semaforow. Jesli nie uda sie
+poprawnie zweryfikowac typu wiadomosci wowczas serwer odpowiada
+nadawcy komunikatem bledu. 
+"""
 class ThreadedTCPRequestHandler(BaseRequestHandler):
 
     def handle(self):
@@ -50,7 +59,11 @@ class ThreadedTCPRequestHandler(BaseRequestHandler):
                 self.request.send(bytes(response, 'ascii'))
 
 
-
+"""
+Klasa wielowatkowego serwera. 
+Implementacja serwera dla kazdego zadania tworzy nowy
+watek i w nim nastepuje jego obsluga. 
+"""
 class ThreadedTCPServer(ThreadingMixIn, TCPServer):
 
     def __init__(self, addr_port, handler):
@@ -59,6 +72,11 @@ class ThreadedTCPServer(ThreadingMixIn, TCPServer):
         super(TCPServer, self).__init__(addr_port, handler)
 
 
+"""
+Funkcja odpowiedzialna za stworzenie kontekstu serwera 
+oraz uruchomienie go i przechwycenie i obsluge przerwania
+ctrl+c aby mozna bylo wowczas poprawnie zamknac serwer.
+"""
 def run():
     logger = logging.getLogger('server')
     logger.setLevel(logging.DEBUG)

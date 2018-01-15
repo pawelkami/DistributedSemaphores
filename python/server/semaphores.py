@@ -10,6 +10,10 @@ from multiprocessing.pool import ThreadPool
 import logging
 
 
+"""
+Klasa rezprezentujaca pojedynczy semafor.
+Sluzy do przechowywania semaforow w kolejce.
+"""
 class Semaphore:
 
     def __init__(self, name, pingOwner):
@@ -17,12 +21,28 @@ class Semaphore:
         self.pingOwnerThread = threading.Thread(target=pingOwner, args=(name,), daemon=True)
         self.end = False
 
+
+"""
+Klasa reprezentujaca klienta, ktory oczekuje 
+na wejscie do sekcji krytycznej. Przechowuje
+niezbedne informacje o kliencie jak adres i 
+pomocnicza flage informujaca o dostepnosci klienta
+"""
 class WaitClient:
 
     def __init__(self, addr):
         self.addr = addr
         self.alive = True
 
+
+"""
+Klasa implementujaca metody sluzace do zarzadzania semaforami.
+Wszystkie metody potrzebuja w argumentach wywolania socketa, 
+na ktorym moga sie komunikowac z klientem. Ponadto klasa ta
+implementuje metode odpowiedzialna za cykliczne wysylanie
+komunikator PING do klientow bedacych wlascicielami semaforow
+przechowywanych w tej klasie w celu weryfikacji ich dostepnosci.
+"""
 class Semaphores:
 
     TIMEOUT = 5
