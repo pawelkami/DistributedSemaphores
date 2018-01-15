@@ -12,6 +12,9 @@ import java.net.UnknownHostException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+/**
+ * Klasa służąca do zarządzania semaforami po stronie klienta.
+ */
 public class Client implements AutoCloseable {
     private static final int SERVER_PORT = 10080;
     private static final int TIMEOUT = 5000;
@@ -55,7 +58,7 @@ public class Client implements AutoCloseable {
         return clientData.toString();
     }
 
-    public String sendAndReceive(Socket socket, String msg) throws IOException {
+    private String sendAndReceive(Socket socket, String msg) throws IOException {
         send(socket, msg);
         return recv(socket);
     }

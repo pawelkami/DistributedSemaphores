@@ -8,6 +8,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
+/**
+ * Serwer gniazd TCP, nasłuchujący na zapytania od klientów.
+ */
 class Server {
 
     private ExecutorService executorService = Executors.newFixedThreadPool(10); // number of server threads

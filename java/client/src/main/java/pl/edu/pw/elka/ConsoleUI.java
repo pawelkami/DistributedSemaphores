@@ -4,6 +4,9 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Scanner;
 
+/**
+ * Klasa reprezentująca interfejs użytkownika w konsoli.
+ */
 public class ConsoleUI {
 
     ConsoleUI() {

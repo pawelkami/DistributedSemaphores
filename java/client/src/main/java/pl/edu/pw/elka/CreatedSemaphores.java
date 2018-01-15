@@ -3,8 +3,11 @@ package pl.edu.pw.elka;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Klasa przechowująca informacje o semaforach, z których korzysta klient.
+ */
 public class CreatedSemaphores {
-    List<Semaphore> semaphoreList;
+    private List<Semaphore> semaphoreList;
     private static CreatedSemaphores instance = null;
 
     private CreatedSemaphores() {

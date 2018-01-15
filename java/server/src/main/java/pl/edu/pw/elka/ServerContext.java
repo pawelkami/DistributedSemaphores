@@ -5,6 +5,10 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 
+/**
+ * Kontekst serwera. Przechowywane są tutaj informacje o semaforach istniejących na serwerze
+ * oraz o kolejkach do każdego z nich. Klasa jest singletonem.
+ */
 public class ServerContext {
     private static ServerContext instance = null;
 
@@ -22,14 +26,6 @@ public class ServerContext {
         return instance;
     }
 
-
-    public synchronized Map<String, Queue<String>> getSemaphoreToProcessMap() {
-        return semaphoreToProcessMap;
-    }
-
-    public synchronized void setSemaphoreToProcessMap(Map<String, Queue<String>> semaphoreToProcessMap) {
-        this.semaphoreToProcessMap = semaphoreToProcessMap;
-    }
 
     public synchronized boolean isSemaphoreExisting(String semName) {
         return semaphoreToProcessMap.containsKey(semName);

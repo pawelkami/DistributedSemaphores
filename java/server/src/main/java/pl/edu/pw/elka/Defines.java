@@ -1,5 +1,8 @@
 package pl.edu.pw.elka;
 
+/**
+ * Definicje ciągów znaków służących do komunikacji w systemie.
+ */
 public class Defines {
 
     public static final String JSON_OPERATION_TYPE = "type";

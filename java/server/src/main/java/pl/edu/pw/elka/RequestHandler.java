@@ -12,18 +12,20 @@ import java.net.SocketException;
 import java.util.Queue;
 import java.util.logging.Logger;
 
-
+/**
+ * Klasa obsługująca żądania od klientów.
+ */
 public class RequestHandler implements Runnable {
     private final int PORT = 8080;
 
     private Socket socket;
     private final int BUF_SIZE = 4 * 1024; // 4 kB
-    Logger log = Logger.getLogger(RequestHandler.class.getName());
-    private static int TIMEOUT = 5000;
+    private Logger log = Logger.getLogger(RequestHandler.class.getName());
+    private static int TIMEOUT = 5000;  // timeout in ms
 
     private static int CLIENT_PORT = 8080;
 
-    public RequestHandler(Socket connection) throws SocketException {
+    RequestHandler(Socket connection) throws SocketException {
         this.socket = connection;
         this.socket.setSoTimeout(TIMEOUT);
     }
@@ -50,6 +52,10 @@ public class RequestHandler implements Runnable {
         }
     }
 
+    /**
+     * Obsługa otrzymanego żądania.
+     * @param json otrzymany JSON
+     */
     private synchronized void handleJsonRequest(JsonObject json) {
         log.info("Handling JSON request");
         JsonElement opJson = json.get("type");
@@ -96,6 +102,10 @@ public class RequestHandler implements Runnable {
 
     }
 
+    /**
+     * Obsługa żądania GET_AWAITING - zwraca kolejkę klientów do semafora.
+     * @param json
+     */
     private void handleGetAwaiting(JsonObject json) {
         String semaphoreName = json.get(Defines.JSON_SEMAPHORE_NAME).getAsString();
 
@@ -116,11 +126,12 @@ public class RequestHandler implements Runnable {
         response.add(Defines.JSON_MESSAGE, jsonArray);
 
         send(response);
-
-
     }
 
-
+    /**
+     * Obsługa żądania odblokowania semafora.
+     * @param json
+     */
     private synchronized void handleUnlockSem(JsonObject json) {
         String semaphoreName = json.get(Defines.JSON_SEMAPHORE_NAME).getAsString();
 
@@ -139,10 +150,13 @@ public class RequestHandler implements Runnable {
             }
 
         }
-
-
     }
 
+    /**
+     * Obsługa żądania blokowania semafora.
+     * @param json
+     * @throws InterruptedException
+     */
     private synchronized void handleLockSem(JsonObject json) throws InterruptedException {
         String clientName = getClientNameFromSocket();
         String semaphoreName = json.get(Defines.JSON_SEMAPHORE_NAME).getAsString();
@@ -166,6 +180,13 @@ public class RequestHandler implements Runnable {
 
     }
 
+    /**
+     * Funkcja obsługująca sekcję krytyczną.
+     * @param semaphoreName
+     * @throws IOException
+     * @throws InterruptedException
+     * @throws DistributedSemaphoreException
+     */
     private void enterCriticalSection(String semaphoreName) throws IOException, InterruptedException, DistributedSemaphoreException {
         sendResponse(Defines.OPERATION_LOCK, semaphoreName, Defines.RESPONSE_ENTER);
 
@@ -175,6 +196,13 @@ public class RequestHandler implements Runnable {
 
     }
 
+    /**
+     * Operacja PING-PONG z klientem będącym w sekcji krytycznej.
+     * @param semaphoreName
+     * @throws IOException
+     * @throws InterruptedException
+     * @throws DistributedSemaphoreException
+     */
     private void pingCriticalSection(String semaphoreName) throws IOException, InterruptedException, DistributedSemaphoreException {
         InetAddress inetAddress = socket.getInetAddress();
         String clientName = getClientNameFromSocket();
@@ -196,6 +224,13 @@ public class RequestHandler implements Runnable {
         }
     }
 
+    /**
+     * Operacja PING-PONG z klientem oczekującym na wejście do sekcji krytycznej.
+     * @param semaphoreName
+     * @throws InterruptedException
+     * @throws IOException
+     * @throws DistributedSemaphoreException
+     */
     private void pingingWait(String semaphoreName) throws InterruptedException, IOException, DistributedSemaphoreException {
         String clientName = getClientNameFromSocket();
         while (true) {
@@ -211,6 +246,12 @@ public class RequestHandler implements Runnable {
         }
     }
 
+    /**
+     * Operacja PING.
+     * @param semaphoreName
+     * @throws IOException
+     * @throws DistributedSemaphoreException
+     */
     private void ping(String semaphoreName) throws IOException, DistributedSemaphoreException {
         String clientName = getClientNameFromSocket();
         sendResponse(Defines.OPERATION_PING, semaphoreName, "");
@@ -226,6 +267,10 @@ public class RequestHandler implements Runnable {
         }
     }
 
+    /**
+     * Obsługa usuwania semafora.
+     * @param json
+     */
     private synchronized void handleDeleteSem(JsonObject json) {
         try {
             ServerContext.getInstance().deleteSemaphore(json.get(Defines.JSON_SEMAPHORE_NAME).getAsString());
@@ -238,6 +283,10 @@ public class RequestHandler implements Runnable {
         }
     }
 
+    /**
+     * Obsługa tworzenia semafora (CREATE).
+     * @param json
+     */
     private synchronized void handleCreateSem(JsonObject json) {
         ServerContext.getInstance().createSemaphore(json.get(Defines.JSON_SEMAPHORE_NAME).getAsString());
 
@@ -245,6 +294,10 @@ public class RequestHandler implements Runnable {
     }
 
 
+    /**
+     * Metoda uzyskująca nazwę klienta (jego adres).
+     * @return adres klienta
+     */
     private String getClientNameFromSocket() {
         // Client name = ip address
         StringBuilder stringBuilder = new StringBuilder();
@@ -255,6 +308,12 @@ public class RequestHandler implements Runnable {
     }
 
 
+    /**
+     * Metoda wysyłająca odpowiedź do klienta.
+     * @param type
+     * @param semName
+     * @param result
+     */
     private void sendResponse(String type, String semName, String result) {
         JsonObject json = new JsonObject();
         json.addProperty("type", type);
@@ -264,6 +323,13 @@ public class RequestHandler implements Runnable {
         send(json);
     }
 
+    /**
+     * Metoda wysyłająca odpowiedź informującą o błędzie.
+     * @param type
+     * @param semName
+     * @param result
+     * @param message
+     */
     private void sendErrorResponse(String type, String semName, String result, String message) {
         JsonObject json = new JsonObject();
         json.addProperty("type", type);
@@ -274,6 +340,10 @@ public class RequestHandler implements Runnable {
         send(json);
     }
 
+    /**
+     * Metoda służąca do wysyłania danych do klienta.
+     * @param json
+     */
     private void send(JsonObject json) {
         try {
             OutputStream os = socket.getOutputStream();
@@ -290,9 +360,15 @@ public class RequestHandler implements Runnable {
     // remove client from queue if it crashes
     private synchronized void removeClientFromSemQueue(String semName, String clientName) {
         Queue<String> q = ServerContext.getInstance().getClientQueue(semName);
-        q.remove(clientName);
+        if(q != null && !q.isEmpty())
+            q.remove(clientName);
     }
 
+    /**
+     * Metoda służąca do odbierania wiadomości od klienta.
+     * @return wiadomość od klienta
+     * @throws IOException
+     */
     private String recv() throws IOException {
         byte[] byteArr = new byte[BUF_SIZE];
         StringBuilder clientData = new StringBuilder();

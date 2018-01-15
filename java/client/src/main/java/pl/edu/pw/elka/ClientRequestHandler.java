@@ -14,6 +14,9 @@ import java.net.UnknownHostException;
 import java.util.List;
 import java.util.logging.Logger;
 
+/**
+ * Klasa obsługująca żądania od serwera lub innych klientów.
+ */
 public class ClientRequestHandler implements Runnable {
     private static final int TIMEOUT = 5000;
     private static final int BUF_SIZE = 1024;

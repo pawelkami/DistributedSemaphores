@@ -7,6 +7,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
+/**
+ * Klasa nasłuchująca żądań od serwerów/klientów. (PING i DEADLOCK)
+ */
 class RequestListener implements Runnable {
 
     private ExecutorService executorService = Executors.newFixedThreadPool(10); // number of server threads
