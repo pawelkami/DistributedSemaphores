@@ -21,8 +21,8 @@ class Client:
     def __init__(self):
         self.logger = logging.getLogger('client')
         self.logger.setLevel(logging.DEBUG)
-        # fh = logging.FileHandler('/home/client.log')
-        fh = logging.StreamHandler(sys.stdout)
+        fh = logging.FileHandler('/home/client.log')
+        # fh = logging.StreamHandler(sys.stdout)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
@@ -170,6 +170,10 @@ class Client:
     def multiLock(self, semaphoresName):
         for semaphoreName in semaphoresName:
             self.lock(semaphoreName)
+
+    def multiUnlock(self, semaphoresName):
+        for semaphoreName in semaphoresName:
+            self.unlock(semaphoreName)
 
     # "{\"type\":\"UNLOCK\",\"sem_name\":\"A\"}"
     def unlock(self, semaphoreName):
