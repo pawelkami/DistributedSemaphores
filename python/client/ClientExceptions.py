@@ -1,5 +1,8 @@
 
-
+"""
+Klasa ze statyczna metoda sluzaca do tworzenia wyjatkow
+adekwatnych do komunikatow otrzymanych z serwera
+"""
 class ClientExceptions:
 
     @staticmethod
