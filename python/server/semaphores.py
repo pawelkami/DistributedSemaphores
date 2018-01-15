@@ -25,7 +25,7 @@ class WaitClient:
 
 class Semaphores:
 
-    TIMEOUT = 10
+    TIMEOUT = 5
     CLIENT_PORT = 8080
 
     def __init__(self):
@@ -159,6 +159,7 @@ class Semaphores:
                             sock.connect((addr, Semaphores.CLIENT_PORT))
                             sock.send(bytes(ping, 'ascii'))
                         except ConnectionRefusedError:
+                            logger.info("Client {} disconnected".format(addr))
                             if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                                 self.semaphores[name].queue.get_nowait()
                         else:
@@ -175,6 +176,7 @@ class Semaphores:
                                 if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                                     self.semaphores[name].queue.get_nowait()
                 except socket.timeout:
+                    logger.info("Client {} disconnected".format(addr))
                     if not self.semaphores[name].queue.empty() and addr == self.semaphores[name].queue.queue[0].addr:
                         self.semaphores[name].queue.get_nowait()
             finally:
