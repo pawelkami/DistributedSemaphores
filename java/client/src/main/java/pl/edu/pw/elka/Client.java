@@ -121,6 +121,12 @@ public class Client implements AutoCloseable {
         }
     }
 
+    public void unlock(String[] names) throws ClientException {
+        for (String n : names) {
+            unlock(n);
+        }
+    }
+
     public void lock(String name) throws ClientException {
         String[] arr = splitSemaphoreName(name);
 
@@ -246,7 +252,7 @@ public class Client implements AutoCloseable {
 
         JsonObject response = sendToServer(json, arr[0]);
 
-        if (response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_OK)) {
+        if (response.get(Defines.JSON_RESULT).getAsString().equals(Defines.RESPONSE_UNLOCKED)) {
             log.info("Semaphore " + name + " unlocked.");
             CreatedSemaphores.getInstance().deleteSemaphore(name);
         } else {

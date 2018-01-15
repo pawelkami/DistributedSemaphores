@@ -28,6 +28,7 @@ public class Defines {
     public static final String RESPONSE_ENTER = "ENTER";
     public static final String RESPONSE_ERROR = "ERROR";
     public static final String RESPONSE_OK = "OK";
+    public static final String RESPONSE_UNLOCKED = "UNLOCKED";
     public static final String RESPONSE_AWAITING = "AWAITING";
     public static final String OPERATION_PING = "PING";
 
