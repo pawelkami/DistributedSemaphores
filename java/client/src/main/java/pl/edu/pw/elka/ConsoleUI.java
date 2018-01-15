@@ -6,10 +6,8 @@ import java.util.Scanner;
 
 public class ConsoleUI {
 
-    private Client client;
-
     ConsoleUI() {
-        client = new Client();
+
     }
 
     private void printMenu() {
@@ -22,64 +20,70 @@ public class ConsoleUI {
         System.out.println("awaiting - get list of awaiting clients");
         System.out.println("exit - exit client");
         System.out.println("");
+        System.out.print("client> ");
 
     }
 
 
     public void run() {
-        while (true) {
-            printMenu();
-            Scanner input = new Scanner(System.in);
+        try(Client client = new Client())
+        {
+            while (true) {
+                printMenu();
+                Scanner input = new Scanner(System.in);
 
-            String line = input.nextLine();
-            String[] commands = line.split("\\s+");
+                String line = input.nextLine();
+                String[] commands = line.split("\\s+");
 
-            String operation = commands[0];
-            String[] sem_names = null;
+                String operation = commands[0];
+                String[] sem_names = null;
 
-            if (!operation.equals("exit")) {
-                if (commands.length < 2) {
-                    System.out.println("Wrong command");
-                    continue;
+                if (!operation.equals("exit")) {
+                    if (commands.length < 2) {
+                        System.out.println("Wrong command");
+                        continue;
+                    }
+
+                    sem_names = Arrays.copyOfRange(commands, 1, commands.length);
                 }
 
-                sem_names = Arrays.copyOfRange(commands, 1, commands.length);
-            }
+                try {
 
-            try {
+                    switch (operation.toLowerCase()) {
+                        case "create":
+                            client.createSemaphore(sem_names[0]);
+                            break;
 
-                switch (operation.toLowerCase()) {
-                    case "create":
-                        client.createSemaphore(sem_names[0]);
-                        break;
+                        case "delete":
+                            client.deleteSemaphore(sem_names[0]);
+                            break;
 
-                    case "delete":
-                        client.deleteSemaphore(sem_names[0]);
-                        break;
+                        case "lock":
+                            client.lock(sem_names);
+                            break;
 
-                    case "lock":
-                        client.lock(sem_names);
-                        break;
+                        case "unlock":
+                            client.unlock(sem_names[0]);
+                            break;
 
-                    case "unlock":
-                        client.unlock(sem_names[0]);
-                        break;
+                        case "awaiting":
+                            client.getAwaiting(sem_names[0]);
+                            break;
 
-                    case "awaiting":
-                        client.getAwaiting(sem_names[0]);
-                        break;
+                        case "exit":
+                            System.exit(0);
+                            break;
 
-                    case "exit":
-                        System.exit(0);
-                        break;
-
-                    default:
-                        break;
+                        default:
+                            break;
+                    }
+                } catch (ClientException | UnknownHostException e) {
+                    e.printStackTrace();
                 }
-            } catch (ClientException | UnknownHostException e) {
-                e.printStackTrace();
-            }
 
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

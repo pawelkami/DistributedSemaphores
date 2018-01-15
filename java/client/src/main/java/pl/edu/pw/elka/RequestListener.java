@@ -1,6 +1,5 @@
 package pl.edu.pw.elka;
 
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -13,23 +12,25 @@ class RequestListener implements Runnable {
     private ExecutorService executorService = Executors.newFixedThreadPool(10); // number of server threads
     public static final int CLIENT_PORT = 8080;
 
-    Logger log = Logger.getLogger(RequestListener.class.getName());
+    private Logger log = Logger.getLogger(RequestListener.class.getName());
+    private Client client;
+    private boolean shutdown = false;
 
+    RequestListener(Client c) {
+        client = c;
+    }
 
-    RequestListener() {
-
+    public void setShutdown(boolean s){
+        shutdown = s;
     }
 
     @Override
     public void run() {
-        //log.info("Creating socket...");
         try (ServerSocket serverSocket = new ServerSocket(CLIENT_PORT)) {
-            while (true) {
-//                log.info("Waiting for request...");
+            while (!shutdown) {
                 try {
                     Socket s = serverSocket.accept();
-//                    log.info("Processing request");
-                    executorService.submit(new ClientRequestHandler(s));
+                    executorService.submit(new ClientRequestHandler(s, client));
                 } catch (IOException ioe) {
                     log.warning("Error accepting connection");
                     ioe.printStackTrace();

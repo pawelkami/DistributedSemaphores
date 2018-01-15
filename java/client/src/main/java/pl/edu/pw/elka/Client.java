@@ -12,14 +12,16 @@ import java.net.UnknownHostException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-public class Client {
+public class Client implements AutoCloseable {
     private static final int SERVER_PORT = 10080;
     private static final int TIMEOUT = 5000;
     private static final int BUF_SIZE = 1024;
     private Logger log = Logger.getLogger(Client.class.getName());
+    private RequestListener requestListener;
 
     Client() {
-
+        requestListener = new RequestListener(this);
+        (new Thread(requestListener)).start();
     }
 
     public void send(Socket socket, String msg) throws IOException {
@@ -158,7 +160,7 @@ public class Client {
 
                 initializeDeadlockCheck(name);
                 while (true) {
-                    if(CreatedSemaphores.getInstance().getDeadlock(name)){
+                    if (CreatedSemaphores.getInstance().getDeadlock(name)) {
                         throw new ClientException("DEADLOCK detected. Unlocking semaphores.");
                     }
 
@@ -215,7 +217,6 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
     }
 
@@ -277,5 +278,10 @@ public class Client {
         } else {
             throw new ClientException("Get awaiting response format is invalid");
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        requestListener.setShutdown(true);
     }
 }

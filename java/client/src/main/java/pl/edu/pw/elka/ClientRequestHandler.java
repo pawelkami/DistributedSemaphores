@@ -18,12 +18,14 @@ public class ClientRequestHandler implements Runnable {
     private static final int TIMEOUT = 5000;
     private static final int BUF_SIZE = 1024;
     private final Socket socket;
+    private Client client;
 
     private Logger log = Logger.getLogger(ClientRequestHandler.class.getName());
 
-    public ClientRequestHandler(Socket s) throws SocketException {
+    public ClientRequestHandler(Socket s, Client c) throws SocketException {
         this.socket = s;
         this.socket.setSoTimeout(TIMEOUT);
+        client = c;
     }
 
     @Override
@@ -32,7 +34,6 @@ public class ClientRequestHandler implements Runnable {
         try {
             String clientData = recv();
 
-            //log.info("Data From Client :" + clientData);
             JsonObject jobj = new Gson().fromJson(clientData, JsonObject.class);
             handleJsonRequest(jobj);
 
@@ -50,7 +51,6 @@ public class ClientRequestHandler implements Runnable {
     }
 
     private void handleJsonRequest(JsonObject json) {
-        //log.info("Handling JSON request");
         JsonElement opJson = json.get("type");
 
         try {
@@ -88,8 +88,6 @@ public class ClientRequestHandler implements Runnable {
 
         // if we are waiting for resources, prepare probe message for send
         if (CreatedSemaphores.getInstance().checkIfWaitingForAnySemaphore()) {
-            Client client = new Client();
-
             List<Semaphore> semaphoreList = CreatedSemaphores.getInstance().getSemaphoreList();
             for (Semaphore s : semaphoreList) {
                 if (s.isWaiting) {
