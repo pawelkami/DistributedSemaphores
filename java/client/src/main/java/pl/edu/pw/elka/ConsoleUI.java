@@ -63,7 +63,7 @@ public class ConsoleUI {
                             break;
 
                         case "unlock":
-                            client.unlock(sem_names[0]);
+                            client.unlock(sem_names);
                             break;
 
                         case "awaiting":

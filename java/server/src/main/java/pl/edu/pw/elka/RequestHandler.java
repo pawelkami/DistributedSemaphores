@@ -132,7 +132,7 @@ public class RequestHandler implements Runnable {
         if (q.peek().equals(getClientNameFromSocket())) {
             try {
                 ServerContext.getInstance().removeFromQueue(semaphoreName, getClientNameFromSocket());
-                sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_OK);
+                sendResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_UNLOCKED);
             } catch (DistributedSemaphoreException e) {
                 e.printStackTrace();
                 sendErrorResponse(json.get(Defines.JSON_OPERATION_TYPE).getAsString(), semaphoreName, Defines.RESPONSE_ERROR, e.getMessage());
